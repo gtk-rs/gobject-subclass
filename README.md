@@ -43,5 +43,5 @@ https://www.gnu.org/licenses/lgpl-2.1.html
 Any kinds of contributions are welcome as a pull request.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in gst-plugin-rs by you, as defined in the Apache-2.0 license, shall be
+for inclusion in gobject-subclass by you, as defined in the Apache-2.0 license, shall be
 dual licensed as above, without any additional terms or conditions.
