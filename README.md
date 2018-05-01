@@ -1,31 +1,30 @@
-# gst-plugin-rs [![crates.io](https://img.shields.io/crates/v/gst-plugin.svg)](https://crates.io/crates/gst-plugin) [![Build Status](https://travis-ci.org/sdroege/gst-plugin-rs.svg?branch=master)](https://travis-ci.org/sdroege/gst-plugin-rs)
+# gobject-subclass [![crates.io](https://img.shields.io/crates/v/gobject-subclass.svg)](https://crates.io/crates/gobject-subclass) [![Build Status](https://travis-ci.org/sdroege/gobject-subclass.svg?branch=master)](https://travis-ci.org/sdroege/gobject-subclass)
 
-Infrastructure for writing [GStreamer](https://gstreamer.freedesktop.org/)
-plugins and elements in the [Rust programming
-language](https://www.rust-lang.org/), and a collection of various GStreamer
-plugins.
+Infrastructure for writing [GObject](https://developer.gnome.org/gobject/stable/)
+subclasses in the [Rust programming language](https://www.rust-lang.org/), and (in the future)
+bindings for GObject and [GIO](https://developer.gnome.org/gio/stable/)
+classes.
 
-Documentation for the crate containing the infrastructure for writing
-GStreamer plugins in Rust, [`gst-plugin`](gst-plugin), can be found
-[here](https://sdroege.github.io/rustdoc/gst-plugin/gst_plugin/). The whole
-API builds upon the [application-side GStreamer bindings](https://github.com/sdroege/gstreamer-rs).
-Check the README.md of that repository also for details about how to set-up
-your development environment.
+Example usage of this can be found here
 
-Various example plugins can be found in the [GIT repository](https://github.com/sdroege/gst-plugin-rs/). A blog post series about writing GStreamer plugins/elements can be found [here](https://coaxion.net/blog/2018/01/how-to-write-gstreamer-elements-in-rust-part-1-a-video-filter-for-converting-rgb-to-grayscale/)[2](https://coaxion.net/blog/2018/02/how-to-write-gstreamer-elements-in-rust-part-2-a-raw-audio-sine-wave-source/).
+ * [gst-plugin-rs](https://github.com/sdroege/gst-plugin-rs): GStreamer plugin
+   writing infrastructure
+ * [gtk-subclass](https://github.com/sdroege/gtk-subclass): GTK class bindings
 
-For background and motivation, see the [announcement
-blogpost](https://coaxion.net/blog/2016/05/writing-gstreamer-plugins-and-elements-in-rust/)
-and the follow-up blogposts
-[1](https://coaxion.net/blog/2016/09/writing-gstreamer-elements-in-rust-part-2-dont-panic-we-have-better-assertions-now-and-other-updates/),
-[2](https://coaxion.net/blog/2016/11/writing-gstreamer-elements-in-rust-part-3-parsing-data-from-untrusted-sources-like-its-2016/),
-[3](https://coaxion.net/blog/2017/03/writing-gstreamer-elements-in-rust-part-4-logging-cows-and-plugins/).
-Note that the overall implementation has changed completely since those
-blogposts were written.
+This is different to [gnome-class](https://gitlab.gnome.org/federico/gnome-class)
+as it does not require usage of a C#-like DLS in a heavy procedural macro, but
+instead works directly with Rust traits. Both are built on top of the
+user-level GLib/GObject/GTK [gtk-rs](http://www.gtk-rs.org) bindings.
+
+It will likely not support all features `gnome-class` will support. For
+example it is not easily possible to create new GObject subclasses and expose
+them to C with the whole instance/class struct and allow adding new virtual
+methods. Subclassing and overriding of existing GObject virtual methods from C
+however is perfectly possible.
 
 ## LICENSE
 
-gst-plugin-rs and all crates contained in here that are not listed below are
+gobject-subclass and all crates contained in here that are not listed below are
 licensed under either of
 
  * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
@@ -35,11 +34,7 @@ licensed under either of
 
 at your option.
 
-gst-plugin-togglerecord is licensed under the Lesser General Public License
-([LICENSE-LGPLv2](LICENSE-LGPLv2)) version 2.1 or (at your option) any later
-version.
-
-GStreamer itself is licensed under the Lesser General Public License version
+GLib/GObject itself is licensed under the Lesser General Public License version
 2.1 or (at your option) any later version:
 https://www.gnu.org/licenses/lgpl-2.1.html
 
