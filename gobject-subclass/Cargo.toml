@@ -2,10 +2,12 @@
 name = "gobject-subclass"
 version = "0.1.0"
 authors = ["Sebastian Dröge <sebastian@centricular.com>"]
+categories = ["api-bindings"]
 description = "Infrastructure for GObject subclassing in Rust"
 repository = "https://github.com/sdroege/gobject-subclass"
 license = "MIT/Apache-2.0"
 readme = "README.md"
+keywords = ["gnome"]
 
 [dependencies]
 libc = "0.2"
