@@ -113,7 +113,7 @@ macro_rules! object_type_fns(
     }
 );
 
-pub trait Instance<T: ObjectType> {
+pub unsafe trait Instance<T: ObjectType> {
     fn parent(&self) -> &T::GlibType;
 
     fn get_impl(&self) -> &T::ImplType;
@@ -129,7 +129,7 @@ pub struct InstanceStruct<T: ObjectType> {
     _imp: ptr::NonNull<T::ImplType>,
 }
 
-impl<T: ObjectType> Instance<T> for InstanceStruct<T> {
+unsafe impl<T: ObjectType> Instance<T> for InstanceStruct<T> {
     fn parent(&self) -> &T::GlibType {
         &self._parent
     }
