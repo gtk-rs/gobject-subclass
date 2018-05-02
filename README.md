@@ -12,7 +12,7 @@ Example usage of this can be found here
  * [gtk-subclass](https://github.com/sdroege/gtk-subclass): GTK class bindings
 
 This is different to [gnome-class](https://gitlab.gnome.org/federico/gnome-class)
-as it does not require usage of a C#-like DLS in a heavy procedural macro, but
+as it does not require usage of a C#-like DSL in a heavy procedural macro, but
 instead works directly with Rust traits. Both are built on top of the
 user-level GLib/GObject/GTK [gtk-rs](http://www.gtk-rs.org) bindings.
 
