@@ -11,6 +11,7 @@ extern crate gobject_sys as gobject_ffi;
 
 extern crate libc;
 
+#[macro_use]
 pub extern crate glib;
 
 #[macro_use]
