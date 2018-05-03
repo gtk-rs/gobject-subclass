@@ -1,4 +1,4 @@
-// Copyright (C) 2017 Sebastian Dröge <sebastian@centricular.com>
+// Copyright (C) 2017,2018 Sebastian Dröge <sebastian@centricular.com>
 //
 // Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
 // http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
@@ -19,9 +19,10 @@ use gobject_ffi;
 use glib;
 use glib::translate::*;
 
+use anyimpl::*;
 pub use properties::*;
 
-pub trait ObjectImpl<T: ObjectType>: 'static {
+pub trait ObjectImpl<T: ObjectBase>: AnyImpl + 'static {
     fn set_property(&self, _obj: &glib::Object, _id: u32, _value: &glib::Value) {
         unimplemented!()
     }
@@ -42,7 +43,7 @@ pub trait ObjectImpl<T: ObjectType>: 'static {
 #[macro_export]
 macro_rules! box_object_impl(
     ($name:ident $(, $constraint:ident)*) => {
-        impl<T: ObjectType> ObjectImpl<T> for Box<$name<T>>
+        impl<T: ObjectBase> ObjectImpl<T> for Box<$name<T>>
         $(
             where T::InstanceStructType: $constraint
         )*
@@ -60,6 +61,8 @@ macro_rules! box_object_impl(
     };
 );
 
+box_object_impl!(ObjectImpl);
+
 pub trait ImplTypeStatic<T: ObjectType>: Send + Sync + 'static {
     fn get_name(&self) -> &str;
     fn new(&self, &T) -> T::ImplType;
@@ -72,26 +75,15 @@ pub struct TypeInitToken(());
 
 pub trait ObjectType: FromGlibPtrBorrow<*mut <Self as ObjectType>::InstanceStructType>
 where
-    Self: Sized + 'static,
+    Self: glib::IsA<glib::Object> + Sized + 'static,
     Self::InstanceStructType: Instance<Self>,
 {
     const NAME: &'static str;
     type InstanceStructType: Instance<Self> + 'static;
-    type GlibType;
-    type GlibClassType;
+    type ParentType: glib::IsA<glib::Object>;
     type ImplType: ObjectImpl<Self>;
 
-    fn glib_type() -> glib::Type;
-
     fn class_init(token: &ClassInitToken, klass: &mut ClassStruct<Self>);
-
-    fn set_property(_obj: &Self, _id: u32, _value: &glib::Value) {
-        unimplemented!()
-    }
-
-    fn get_property(_obj: &Self, _id: u32) -> Result<glib::Value, ()> {
-        unimplemented!()
-    }
 
     unsafe fn get_instance(&self) -> *mut Self::InstanceStructType;
 
@@ -114,9 +106,9 @@ macro_rules! object_type_fns(
 );
 
 pub unsafe trait Instance<T: ObjectType> {
-    fn parent(&self) -> &T::GlibType;
+    fn parent(&self) -> &<T::ParentType as glib::wrapper::Wrapper>::GlibType;
 
-    fn get_impl(&self) -> &T::ImplType;
+    fn get_impl(&self) -> &<T as ObjectType>::ImplType;
 
     unsafe fn set_impl(&mut self, imp: ptr::NonNull<T::ImplType>);
 
@@ -125,12 +117,12 @@ pub unsafe trait Instance<T: ObjectType> {
 
 #[repr(C)]
 pub struct InstanceStruct<T: ObjectType> {
-    _parent: T::GlibType,
+    _parent: <T::ParentType as glib::wrapper::Wrapper>::GlibType,
     _imp: ptr::NonNull<T::ImplType>,
 }
 
 unsafe impl<T: ObjectType> Instance<T> for InstanceStruct<T> {
-    fn parent(&self) -> &T::GlibType {
+    fn parent(&self) -> &<T::ParentType as glib::wrapper::Wrapper>::GlibType {
         &self._parent
     }
 
@@ -149,14 +141,16 @@ unsafe impl<T: ObjectType> Instance<T> for InstanceStruct<T> {
 
 #[repr(C)]
 pub struct ClassStruct<T: ObjectType> {
-    pub parent: T::GlibClassType,
+    pub parent: <T::ParentType as glib::wrapper::Wrapper>::GlibClassType,
     pub imp_static: ptr::NonNull<Box<ImplTypeStatic<T>>>,
-    pub parent_class: ptr::NonNull<T::GlibClassType>,
+    pub parent_class: ptr::NonNull<<T::ParentType as glib::wrapper::Wrapper>::GlibClassType>,
     pub interfaces_static: *const Vec<(glib_ffi::GType, glib_ffi::gpointer)>,
 }
 
 impl<T: ObjectType> ClassStruct<T> {
-    pub fn get_parent_class(&self) -> *const T::GlibClassType {
+    pub fn get_parent_class(
+        &self,
+    ) -> *const <T::ParentType as glib::wrapper::Wrapper>::GlibClassType {
         self.parent_class.as_ptr()
     }
 }
@@ -179,7 +173,17 @@ impl<T: ObjectType> ClassStruct<T> {
     }
 }
 
-pub unsafe trait ObjectClass {
+pub unsafe trait ObjectClassExt<T: ObjectBase>
+where
+    T::ImplType: ObjectImpl<T>,
+{
+    fn override_vfuncs(&mut self, _: &ClassInitToken) {
+        unsafe {
+            let _klass = &mut *(self as *const Self as *mut gobject_ffi::GObjectClass);
+            // Nothing to see here yet
+        }
+    }
+
     fn install_properties(&mut self, properties: &[Property]) {
         if properties.is_empty() {
             return;
@@ -296,8 +300,6 @@ pub unsafe trait ObjectClass {
     }
 }
 
-unsafe impl<T: ObjectType> ObjectClass for ClassStruct<T> {}
-
 unsafe extern "C" fn class_init<T: ObjectType>(
     klass: glib_ffi::gpointer,
     _klass_data: glib_ffi::gpointer,
@@ -307,15 +309,13 @@ unsafe extern "C" fn class_init<T: ObjectType>(
         let gobject_klass = &mut *(klass as *mut gobject_ffi::GObjectClass);
 
         gobject_klass.finalize = Some(finalize::<T>);
-        gobject_klass.set_property = Some(set_property::<T>);
-        gobject_klass.get_property = Some(get_property::<T>);
     }
 
     {
         let klass = &mut *(klass as *mut ClassStruct<T>);
-        let parent_class = gobject_ffi::g_type_class_peek_parent(
-            klass as *mut _ as glib_ffi::gpointer,
-        ) as *mut T::GlibClassType;
+        let parent_class =
+            gobject_ffi::g_type_class_peek_parent(klass as *mut _ as glib_ffi::gpointer)
+                as *mut <T::ParentType as glib::wrapper::Wrapper>::GlibClassType;
         assert!(!parent_class.is_null());
         klass.parent_class = ptr::NonNull::new_unchecked(parent_class);
         T::class_init(&ClassInitToken(()), klass);
@@ -334,39 +334,6 @@ unsafe extern "C" fn finalize<T: ObjectType>(obj: *mut gobject_ffi::GObject) {
     let parent_klass =
         &*(gobject_ffi::g_type_class_peek_parent(parent_klass) as *const gobject_ffi::GObjectClass);
     parent_klass.finalize.map(|f| f(obj));
-}
-
-unsafe extern "C" fn get_property<T: ObjectType>(
-    obj: *mut gobject_ffi::GObject,
-    id: u32,
-    value: *mut gobject_ffi::GValue,
-    _pspec: *mut gobject_ffi::GParamSpec,
-) {
-    callback_guard!();
-    floating_reference_guard!(obj);
-    match T::get_property(&from_glib_borrow(obj as *mut T::InstanceStructType), id - 1) {
-        Ok(v) => {
-            gobject_ffi::g_value_unset(value);
-            ptr::write(value, ptr::read(v.to_glib_none().0));
-            mem::forget(v);
-        }
-        Err(()) => eprintln!("Failed to get property"),
-    }
-}
-
-unsafe extern "C" fn set_property<T: ObjectType>(
-    obj: *mut gobject_ffi::GObject,
-    id: u32,
-    value: *mut gobject_ffi::GValue,
-    _pspec: *mut gobject_ffi::GParamSpec,
-) {
-    callback_guard!();
-    floating_reference_guard!(obj);
-    T::set_property(
-        &from_glib_borrow(obj as *mut T::InstanceStructType),
-        id - 1,
-        &*(value as *mut glib::Value),
-    );
 }
 
 static mut TYPES: *mut Mutex<BTreeMap<TypeId, glib::Type>> = 0 as *mut _;
@@ -412,7 +379,7 @@ pub unsafe fn get_type<T: ObjectType>() -> glib_ffi::GType {
             };
 
             from_glib(gobject_ffi::g_type_register_static(
-                T::glib_type().to_glib(),
+                <T::ParentType as glib::StaticType>::static_type().to_glib(),
                 type_name.as_ptr(),
                 &type_info,
                 gobject_ffi::G_TYPE_FLAG_ABSTRACT,
@@ -527,4 +494,36 @@ pub fn register_type<T: ObjectType, I: ImplTypeStatic<T>>(imp: I) -> glib::Type 
 
         type_
     }
+}
+
+any_impl!(ObjectBase, ObjectImpl);
+
+pub unsafe trait ObjectBase: glib::IsA<glib::Object> + ObjectType {}
+
+glib_wrapper! {
+    pub struct Object(Object<InstanceStruct<Object>>);
+
+    match fn {
+        get_type => || get_type::<Object>(),
+    }
+}
+
+unsafe impl<T: glib::IsA<glib::Object> + ObjectType> ObjectBase for T {}
+
+pub type ObjectClass = ClassStruct<Object>;
+
+// FIXME: Boilerplate
+unsafe impl ObjectClassExt<Object> for ObjectClass {}
+
+impl ObjectType for Object {
+    const NAME: &'static str = "RsObject";
+    type ParentType = glib::Object;
+    type ImplType = Box<ObjectImpl<Self>>;
+    type InstanceStructType = InstanceStruct<Self>;
+
+    fn class_init(token: &ClassInitToken, klass: &mut ObjectClass) {
+        klass.override_vfuncs(token);
+    }
+
+    object_type_fns!();
 }
