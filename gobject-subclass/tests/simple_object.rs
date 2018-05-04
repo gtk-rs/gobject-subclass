@@ -28,6 +28,7 @@ mod imp {
 
     pub struct SimpleObject {
         name: RefCell<Option<String>>,
+        parent: glib::WeakRef<Object>,
     }
 
     static PROPERTIES: [Property; 1] = [Property::String(
@@ -55,17 +56,23 @@ mod imp {
 
         fn class_init(klass: &mut ObjectClass) {
             klass.install_properties(&PROPERTIES);
+
+            klass.add_signal("name-changed", &[String::static_type()], glib::Type::Unit);
         }
 
-        fn init(_obj: &Object) -> Box<ObjectImpl<Object>> {
+        fn init(obj: &Object) -> Box<ObjectImpl<Object>> {
             let imp = Self {
                 name: RefCell::new(None),
+                parent: obj.downgrade(),
             };
             Box::new(imp)
         }
 
         pub fn set_name(&self, name: Option<&str>) {
             self.name.replace(name.map(String::from));
+            self.parent
+                .upgrade()
+                .map(|o| o.emit("name-changed", &[&name]).unwrap());
         }
 
         pub fn get_name(&self) -> Option<String> {
@@ -74,12 +81,14 @@ mod imp {
     }
 
     impl ObjectImpl<Object> for SimpleObject {
-        fn set_property(&self, _obj: &glib::Object, id: u32, value: &glib::Value) {
+        fn set_property(&self, obj: &glib::Object, id: u32, value: &glib::Value) {
             let prop = &PROPERTIES[id as usize];
 
             match *prop {
                 Property::String("name", ..) => {
-                    self.name.replace(value.get());
+                    let name = value.get();
+                    self.name.replace(name.clone());
+                    obj.emit("name-changed", &[&name]).unwrap();
                 }
                 _ => unimplemented!(),
             }
@@ -131,6 +140,36 @@ impl SimpleObject {
                 .downcast_unchecked()
         }
     }
+
+    pub fn connect_name_changed<F: Fn(&Self, Option<&str>) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        // FIXME: This needs some simplification...
+        //
+        // Get us Send/Sync constraints
+        let f: Box<Fn(&Self, Option<&str>) + Send + Sync + 'static> = unsafe {
+            let f: Box<Fn(&Self, Option<&str>) + 'static> = Box::new(f);
+            Box::from_raw(Box::into_raw(f) as *mut _)
+        };
+
+        self.connect("name-changed", false, move |values| {
+            use glib::object::Downcast;
+
+            let obj: Self = unsafe {
+                values[0]
+                    .get::<glib::Object>()
+                    .unwrap()
+                    .downcast_unchecked()
+            };
+
+            let name = values[1].get();
+
+            f(&obj, name);
+
+            None
+        }).unwrap()
+    }
 }
 
 // TODO: This one should probably get a macro
@@ -176,4 +215,23 @@ fn test_set_property() {
     obj.set_name(Some("bah"));
     assert_eq!(obj.get_property("name").unwrap().get::<&str>(), Some("bah"));
     assert_eq!(obj.get_name(), Some("bah".into()));
+}
+
+#[test]
+fn test_signals() {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let obj = SimpleObject::new(None);
+
+    let name = Rc::new(RefCell::new(None));
+    let name_clone = name.clone();
+
+    obj.connect_name_changed(move |_obj, name| {
+        name_clone.replace(name.map(String::from));
+    });
+
+    assert_eq!(*name.borrow(), None);
+    obj.set_property("name", &"meh").unwrap();
+    assert_eq!(*name.borrow(), Some(String::from("meh")));
 }
