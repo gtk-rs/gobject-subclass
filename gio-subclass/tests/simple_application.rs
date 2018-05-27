@@ -17,6 +17,8 @@ use glib::prelude::*;
 use glib::translate::*;
 
 extern crate gio_subclass;
+
+#[macro_use]
 extern crate gobject_subclass;
 
 use gio_subclass::application::*;
@@ -127,21 +129,8 @@ glib_wrapper! {
     }
 }
 
-// TODO: This one should probably get a macro
-impl ops::Deref for SimpleApplication {
-    type Target = imp::SimpleApplication;
+gobject_subclass_deref!(SimpleApplication, Application);
 
-    fn deref(&self) -> &Self::Target {
-        unsafe {
-            let base: Application = from_glib_borrow(self.to_glib_none().0);
-            let imp = base.get_impl();
-            let imp = imp.downcast_ref::<imp::SimpleApplication>().unwrap();
-            // Cast to a raw pointer to get us an appropriate lifetime: the compiler
-            // can't know that the lifetime of base is the same as the one of self
-            &*(imp as *const imp::SimpleApplication)
-        }
-    }
-}
 
 impl SimpleApplication {
     pub fn new<'a, I: Into<Option<&'a str>>>(
