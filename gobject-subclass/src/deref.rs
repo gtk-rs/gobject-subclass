@@ -1,4 +1,3 @@
-
 #[macro_export]
 macro_rules! gobject_subclass_deref(
 
@@ -8,7 +7,7 @@ macro_rules! gobject_subclass_deref(
 
     ($name:ident, $target:ty, $base:ident) => {
         use std::ops::Deref;
-        
+
         impl Deref for $name {
             type Target = $target;
 
