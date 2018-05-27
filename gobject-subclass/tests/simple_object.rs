@@ -7,7 +7,6 @@
 // except according to those terms.
 
 use std::mem;
-use std::ops;
 use std::ptr;
 use std::sync::{Once, ONCE_INIT};
 

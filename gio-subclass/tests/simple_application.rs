@@ -1,6 +1,5 @@
 // adaptation of https://gitlab.gnome.org/GNOME/glib/blob/master/gio/tests/gapplication-example-cmdline2.c
 use std::mem;
-use std::ops;
 use std::ptr;
 use std::sync::{Once, ONCE_INIT};
 
