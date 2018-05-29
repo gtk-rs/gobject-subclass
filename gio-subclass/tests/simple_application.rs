@@ -68,7 +68,9 @@ mod imp {
             let mut rm = Vec::new();
 
             for (i, line) in arguments.iter().enumerate() {
-                if line.starts_with("--local-") {
+                // TODO: we need https://github.com/rust-lang/rust/issues/49802
+                let l = line.clone().into_string().unwrap();
+                if l.starts_with("--local-") {
                     rm.push(i)
                 }
             }
@@ -90,7 +92,9 @@ mod imp {
             let arguments = cmd_line.get_arguments();
 
             for arg in arguments {
-                assert!(!arg.starts_with("--local-"))
+                // TODO: we need https://github.com/rust-lang/rust/issues/49802
+                let a = arg.into_string().unwrap();
+                assert!(!a.starts_with("--local-"))
             }
 
             return EXIT_STATUS;
