@@ -7,7 +7,6 @@
 // except according to those terms.
 
 use std::mem;
-use std::ops;
 use std::ptr;
 use std::sync::{Once, ONCE_INIT};
 
@@ -19,6 +18,7 @@ extern crate glib;
 use glib::prelude::*;
 use glib::translate::*;
 
+#[macro_use]
 extern crate gobject_subclass;
 use gobject_subclass::object::*;
 
@@ -172,21 +172,7 @@ impl SimpleObject {
     }
 }
 
-// TODO: This one should probably get a macro
-impl ops::Deref for SimpleObject {
-    type Target = imp::SimpleObject;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe {
-            let base: Object = from_glib_borrow(self.to_glib_none().0);
-            let imp = base.get_impl();
-            let imp = imp.downcast_ref::<imp::SimpleObject>().unwrap();
-            // Cast to a raw pointer to get us an appropriate lifetime: the compiler
-            // can't know that the lifetime of base is the same as the one of self
-            &*(imp as *const imp::SimpleObject)
-        }
-    }
-}
+gobject_subclass_deref!(SimpleObject, Object);
 
 #[test]
 fn test_create() {
