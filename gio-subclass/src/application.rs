@@ -11,13 +11,14 @@ use std::fmt;
 use std::mem;
 use std::ops::Deref;
 use std::ptr;
+use std::ffi::OsString;
 
 use gobject_subclass::anyimpl::*;
 use gobject_subclass::object::*;
 
 pub struct ArgumentList {
     pub(crate) ptr: *mut *mut *mut libc::c_char,
-    items: Vec<String>,
+    items: Vec<OsString>,
 }
 
 impl ArgumentList {
@@ -55,7 +56,7 @@ impl ArgumentList {
 }
 
 impl Deref for ArgumentList {
-    type Target = [String];
+    type Target = [OsString];
 
     fn deref(&self) -> &Self::Target {
         self.items.as_slice()
@@ -68,8 +69,8 @@ impl fmt::Debug for ArgumentList {
     }
 }
 
-impl convert::Into<Vec<String>> for ArgumentList {
-    fn into(self) -> Vec<String> {
+impl convert::Into<Vec<OsString>> for ArgumentList {
+    fn into(self) -> Vec<OsString> {
         self.items.clone()
     }
 }
