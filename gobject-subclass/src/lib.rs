@@ -23,3 +23,6 @@ pub mod guard;
 pub mod properties;
 #[macro_use]
 pub mod object;
+
+#[macro_use]
+mod deref;
