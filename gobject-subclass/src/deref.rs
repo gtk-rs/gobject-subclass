@@ -1,6 +1,5 @@
 #[macro_export]
 macro_rules! gobject_subclass_deref(
-
     ($name:ident, $base:ident) => {
         gobject_subclass_deref!($name, imp::$name, $base);
     };
