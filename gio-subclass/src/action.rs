@@ -2,10 +2,6 @@
 // from gir-files (https://github.com/gtk-rs/gir-files @ b215ee8+)
 // DO NOT EDIT
 
-#![allow(non_camel_case_types, non_upper_case_globals, non_snake_case)]
-
-extern crate libc;
-
 #[allow(unused_imports)]
 use libc::{c_int, c_char, c_uchar, c_float, c_uint, c_double,
     c_short, c_ushort, c_long, c_ulong,
@@ -13,6 +9,9 @@ use libc::{c_int, c_char, c_uchar, c_float, c_uint, c_double,
 
 #[allow(unused_imports)]
 use glib::{gboolean, gconstpointer, gpointer, GType};
+
+use gobject_subclass::anyimpl::*;
+use gobject_subclass::object::*;
 
 #[cfg(any(feature = "v2_38", feature = "dox"))]
 use Error;
