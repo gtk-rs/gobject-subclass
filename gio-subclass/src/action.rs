@@ -16,6 +16,8 @@ use gobject_subclass::object::*;
 #[cfg(any(feature = "v2_38", feature = "dox"))]
 use Error;
 use ffi;
+use gio;
+use gio_ffi;
 use glib;
 use glib::object::Downcast;
 use glib::object::IsA;
@@ -32,21 +34,21 @@ use std::ptr;
 
 pub trait ActionImpl: AnyImpl + 'static {
 
-    fn activate(&self, action: &Action, parameter: Option<&glib::Variant>);
+    fn activate(&self, action: &gio::Action, parameter: Option<&glib::Variant>);
 
-    fn change_state(&self, action: &Action, value: &glib::Variant);
+    fn change_state(&self, action: &gio::Action, value: &glib::Variant);
 
-    fn get_enabled(&self, action: &Action) -> bool;
+    fn get_enabled(&self, action: &gio::Action) -> bool;
 
-    fn get_name(&self, action: &Action) -> Option<String>;
+    fn get_name(&self, action: &gio::Action) -> Option<String>;
 
-    fn get_parameter_type(&self, action: &Action) -> Option<glib::VariantType>;
+    fn get_parameter_type(&self, action: &gio::Action) -> Option<glib::VariantType>;
 
-    fn get_state(&self, action: &Action) -> Option<glib::Variant>;
+    fn get_state(&self, action: &gio::Action) -> Option<glib::Variant>;
 
-    fn get_state_hint(&self, action: &Action) -> Option<glib::Variant>;
+    fn get_state_hint(&self, action: &gio::Action) -> Option<glib::Variant>;
 
-    fn get_state_type(&self, action: &Action) -> Option<glib::VariantType>;
+    fn get_state_type(&self, action: &gio::Action) -> Option<glib::VariantType>;
 
 }
 
@@ -61,12 +63,12 @@ struct ActionStatic<T: ObjectType>{
 }
 
 unsafe extern "C" fn action_activate<T: ObjectType>
-(ptr: *mut GAction, parameter: *mut glib::GVariant)
+(ptr: *mut gio::GAction, parameter: *mut glib::GVariant)
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -76,12 +78,12 @@ unsafe extern "C" fn action_activate<T: ObjectType>
 }
 
 unsafe extern "C" fn action_change_state<T: ObjectType>
-(ptr: *mut GAction, value: *mut glib::GVariant)
+(ptr: *mut gio::GAction, value: *mut glib::GVariant)
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -91,12 +93,12 @@ unsafe extern "C" fn action_change_state<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_enabled<T: ObjectType>
-(ptr: *mut GAction) -> gboolean
+(ptr: *mut gio::GAction) -> gboolean
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -106,12 +108,12 @@ unsafe extern "C" fn action_get_enabled<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_name<T: ObjectType>
-(ptr: *mut GAction) -> *const c_char
+(ptr: *mut gio::GAction) -> *const c_char
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -121,12 +123,12 @@ unsafe extern "C" fn action_get_name<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_parameter_type<T: ObjectType>
-(ptr: *mut GAction) -> *const glib::GVariantType
+(ptr: *mut gio::GAction) -> *const glib::GVariantType
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -136,12 +138,12 @@ unsafe extern "C" fn action_get_parameter_type<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_state<T: ObjectType>
-(ptr: *mut GAction) -> *mut glib::GVariant
+(ptr: *mut gio::GAction) -> *mut glib::GVariant
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -151,12 +153,12 @@ unsafe extern "C" fn action_get_state<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_state_hint<T: ObjectType>
-(ptr: *mut GAction) -> *mut glib::GVariant
+(ptr: *mut gio::GAction) -> *mut glib::GVariant
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -166,12 +168,12 @@ unsafe extern "C" fn action_get_state_hint<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_state_type<T: ObjectType>
-(ptr: *mut GAction) -> *const glib::GVariantType
+(ptr: *mut gio::GAction) -> *const glib::GVariantType
 {
     callback_guard!();
     floating_reference_guard!(ptr);
     let klass = &**(ptr as *const *const ClassStruct<T>);
-    let interface_static = klass.get_interface_static(ffi::action_get_type())
+    let interface_static = klass.get_interface_static(gio_ffi::action_get_type())
                                      as *const ActionStatic<T>;
     let instance = &*(ptr as *const T::InstanceStructType);
     let imp = instance.get_impl();
@@ -185,7 +187,7 @@ unsafe extern "C" fn action_init<T: ObjectType>(
     iface_data: glib_ffi::gpointer
 ) {
     callback_guard!();
-    let action_iface = &mut *(iface as *mut ffi::GAction);
+    let action_iface = &mut *(iface as *mut gio_ffi::GAction);
     let iface_type = (*(iface as *const gobject_ffi::GTypeInterface)).g_type;
     let type_ = (*(iface as *const gobject_ffi::GTypeInterface)).g_instance_type;
     let klass = &mut *(gobject_ffi::g_type_class_ref(type_) as *mut ClassStruct<T>);
