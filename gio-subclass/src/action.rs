@@ -60,7 +60,7 @@ struct ActionStatic<T: ObjectType>{
 }
 
 unsafe extern "C" fn action_activate<T: ObjectType>
-(ptr: *mut gio::GAction, parameter: *mut glib::GVariant)
+(ptr: *mut gio_ffi::GAction, parameter: *mut glib_ffi::GVariant)
 {
     callback_guard!();
     floating_reference_guard!(ptr);
@@ -75,7 +75,7 @@ unsafe extern "C" fn action_activate<T: ObjectType>
 }
 
 unsafe extern "C" fn action_change_state<T: ObjectType>
-(ptr: *mut gio::GAction, value: *mut glib::GVariant)
+(ptr: *mut gio_ffi::GAction, value: *mut glib_ffi::GVariant)
 {
     callback_guard!();
     floating_reference_guard!(ptr);
@@ -90,7 +90,7 @@ unsafe extern "C" fn action_change_state<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_enabled<T: ObjectType>
-(ptr: *mut gio::GAction) -> gboolean
+(ptr: *mut gio_ffi::GAction) -> gboolean
 {
     callback_guard!();
     floating_reference_guard!(ptr);
@@ -105,7 +105,7 @@ unsafe extern "C" fn action_get_enabled<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_name<T: ObjectType>
-(ptr: *mut gio::GAction) -> *const c_char
+(ptr: *mut gio_ffi::GAction) -> *const c_char
 {
     callback_guard!();
     floating_reference_guard!(ptr);
@@ -120,7 +120,7 @@ unsafe extern "C" fn action_get_name<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_parameter_type<T: ObjectType>
-(ptr: *mut gio::GAction) -> *const glib::GVariantType
+(ptr: *mut gio_ffi::GAction) -> *const glib_ffi::GVariantType
 {
     callback_guard!();
     floating_reference_guard!(ptr);
@@ -135,7 +135,7 @@ unsafe extern "C" fn action_get_parameter_type<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_state<T: ObjectType>
-(ptr: *mut gio::GAction) -> *mut glib::GVariant
+(ptr: *mut gio_ffi::GAction) -> *mut glib_ffi::GVariant
 {
     callback_guard!();
     floating_reference_guard!(ptr);
@@ -150,7 +150,7 @@ unsafe extern "C" fn action_get_state<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_state_hint<T: ObjectType>
-(ptr: *mut gio::GAction) -> *mut glib::GVariant
+(ptr: *mut gio_ffi::GAction) -> *mut glib_ffi::GVariant
 {
     callback_guard!();
     floating_reference_guard!(ptr);
@@ -165,7 +165,7 @@ unsafe extern "C" fn action_get_state_hint<T: ObjectType>
 }
 
 unsafe extern "C" fn action_get_state_type<T: ObjectType>
-(ptr: *mut gio::GAction) -> *const glib::GVariantType
+(ptr: *mut gio_ffi::GAction) -> *const glib_ffi::GVariantType
 {
     callback_guard!();
     floating_reference_guard!(ptr);
