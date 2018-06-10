@@ -221,3 +221,27 @@ unsafe extern "C" fn action_init<T: ObjectType>(
     action_iface.get_state_hint = Some(action_get_state_hint::<T>);
     action_iface.get_state_type = Some(action_get_state_type::<T>);
 }
+
+pub fn register_action<T: ObjectType, I: ActionImplStatic<T>>(
+    _: &TypeInitToken,
+    type_: glib::Type,
+    imp: &I,
+) {
+    unsafe {
+        let imp = imp as &ActionImplStatic<T> as *const ActionImplStatic<T>;
+        let interface_static = Box::new(ActionStatic {
+            imp_static: imp,
+        });
+
+        let iface_info = gobject_ffi::GInterfaceInfo {
+            interface_init: Some(action_init::<T>),
+            interface_finalize: None,
+            interface_data: Box::into_raw(interface_static) as glib_ffi::gpointer,
+        };
+        gobject_ffi::g_type_add_interface_static(
+            type_.to_glib(),
+            gio_ffi::g_action_get_type(),
+            &iface_info,
+        );
+    }
+}
