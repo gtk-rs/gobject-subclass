@@ -7,7 +7,9 @@ min_cfg_version = "2.32"
 target_path = "./gio-subclass"
 work_mode = "subclass"
 
-generate = []
+generate = [
+    "Gio.Action"
+]
 
 manual = [
     "GLib.Bytes",
