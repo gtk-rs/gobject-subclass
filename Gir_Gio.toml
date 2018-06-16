@@ -1,5 +1,5 @@
 [options]
-girs_dir = "../../../gir-files"
+girs_dir = "./gir-files"
 library = "Gio"
 library_export = "gio-subclass"
 version = "2.0"
