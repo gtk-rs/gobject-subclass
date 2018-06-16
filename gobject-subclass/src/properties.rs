@@ -16,6 +16,8 @@ pub enum PropertyMutability {
     Readable,
     Writable,
     ReadWrite,
+    Construct,
+    ConstructOnly
 }
 
 impl Into<gobject_ffi::GParamFlags> for PropertyMutability {
@@ -26,6 +28,8 @@ impl Into<gobject_ffi::GParamFlags> for PropertyMutability {
             Readable => gobject_ffi::G_PARAM_READABLE,
             Writable => gobject_ffi::G_PARAM_WRITABLE,
             ReadWrite => gobject_ffi::G_PARAM_READWRITE,
+            Construct => gobject_ffi::G_PARAM_CONSTRUCT,
+            ConstructOnly => gobject_ffi::G_PARAM_CONSTRUCT_ONLY
         }
     }
 }
@@ -100,6 +104,14 @@ pub enum Property<'a> {
         &'a str,
         &'a str,
         fn() -> glib::Type,
+        PropertyMutability,
+    ),
+    Variant(
+        &'a str,
+        &'a str,
+        &'a str,
+        fn() -> glib::VariantType,
+        Option<&'a glib::Variant>,
         PropertyMutability,
     ),
 }
@@ -207,6 +219,16 @@ impl<'a> Into<*mut gobject_ffi::GParamSpec> for &'a Property<'a> {
                         nick.to_glib_none().0,
                         description.to_glib_none().0,
                         get_type().to_glib(),
+                        mutability.into(),
+                    )
+                }
+                Property::Variant(name, nick, description, get_type, default, mutability) => {
+                    gobject_ffi::g_param_spec_variant(
+                        name.to_glib_none().0,
+                        nick.to_glib_none().0,
+                        description.to_glib_none().0,
+                        get_type().to_glib_none().0,
+                        default.to_glib_none().0,
                         mutability.into(),
                     )
                 }

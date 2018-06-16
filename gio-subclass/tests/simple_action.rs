@@ -20,6 +20,8 @@ use glib::translate::*;
 extern crate gio;
 use gio::prelude::*;
 
+use glib::value::AnyValue;
+
 #[macro_use]
 extern crate gobject_subclass;
 use gobject_subclass::object::*;
@@ -30,9 +32,62 @@ use gio_subclass::action::*;
 
 mod imp {
     use super::*;
+    use std::cell::RefCell;
 
+    static PROPERTIES: [Property; 5] = [
+        Property::String(
+            "name",
+            "Action Name",
+            "The name used to invoke the action",
+            None,
+            PropertyMutability::ReadWrite // | PropertyMutability::ConstructOnly
+                // | PropertyMutability::StaticStrings,
+        ),
+        Property::Boxed(
+            "parameter-type",
+            "Parameter Type",
+            "The type of GVariant passed to activate()",
+            || glib::types::Type::Other(unsafe{glib_ffi::g_variant_type_get_gtype()}),
+            PropertyMutability::ReadWrite// |
+            // PropertyMutability::ConstructOnly |
+            // PropertyMutability::StaticStrings,
+        ),
+        Property::Boolean(
+            "enabled",
+            "Enabled",
+            "If the action can be activated",
+            true,
+            PropertyMutability::ReadWrite
+             // | PropertyMutability::StaticStrings,
+        ),
+        Property::Boxed(
+            "state-type",
+            "State Type",
+            "The type of the state kept by the action",
+            || glib::types::Type::Other(unsafe{glib_ffi::g_variant_type_get_gtype()}),
+            PropertyMutability::ReadWrite //|
+            // PropertyMutability::ConstructOnly |
+            // PropertyMutability::StaticStrings,
+        ),
+        Property::Variant(
+            "state",
+            "State",
+            "The state the action is in",
+            || glib::VariantType::new("*").unwrap(),
+            None,
+            PropertyMutability::ReadWrite //|
+            //PropertyMutability::StaticStrings,
+        ),
+    ];
+
+    #[derive(Default)]
     pub struct SimpleAction {
-        dummy: i32,
+        name: RefCell<Option<String>>,
+        parameter_type: Option<glib::VariantType>,
+        enabled: bool,
+        state: Option<glib::Variant>,
+        state_hint: Option<glib::Variant>,
+        state_set_already: bool,
     }
 
     impl SimpleAction {
@@ -51,17 +106,36 @@ mod imp {
         }
 
         fn class_init(klass: &mut ObjectClass) {
+            klass.install_properties(&PROPERTIES);
         }
 
         fn init(obj: &Object) -> Box<ObjectImpl<Object>> {
-            let imp = Self {
-                dummy: 0,
-            };
+            let imp = SimpleAction::default();
             Box::new(imp)
         }
     }
 
     impl ObjectImpl<Object> for SimpleAction {
+        fn set_property(&self, obj: &glib::Object, id: u32, value: &glib::Value) {
+            let prop = &PROPERTIES[id as usize];
+
+            match *prop {
+                Property::String("name", ..) => {
+                    let name = value.get();
+                    self.name.replace(name.clone());
+                }
+                _ => unimplemented!(),
+            }
+        }
+
+        fn get_property(&self, obj: &glib::Object, id: u32) -> Result<glib::Value, ()> {
+            let prop = &PROPERTIES[id as usize];
+
+            match *prop {
+                Property::String("name", ..) => Ok(self.name.borrow().clone().to_value()),
+                _ => unimplemented!(),
+            }
+        }
     }
 
     impl ActionImpl for SimpleAction {
@@ -74,7 +148,7 @@ mod imp {
         }
 
         fn get_enabled(&self, action: &gio::Action) -> bool {
-            unimplemented!();
+            self.enabled
         }
 
         fn get_name(&self, action: &gio::Action) -> Option<String> {
@@ -135,11 +209,39 @@ glib_wrapper! {
 }
 
 impl SimpleAction {
-    pub fn new() -> SimpleAction {
+    pub fn new<'a, P: Into<Option<&'a glib::VariantTy>>>(
+        name: &str,
+        parameter_type: P,
+    ) -> SimpleAction {
         use glib::object::Downcast;
 
+        let ptype:Option<String> = parameter_type.into().map(|p| p.to_str().to_string());
+
         unsafe {
-            glib::Object::new(Self::static_type(), &[])
+            glib::Object::new(Self::static_type(), &[
+                ("name", &name),
+                ("parameter-type", &ptype)
+            ])
+                .unwrap()
+                .downcast_unchecked()
+        }
+    }
+
+    pub fn new_stateful<'a, P: Into<Option<&'a glib::VariantTy>>>(
+        name: &str,
+        parameter_type: P,
+        state: &glib::Variant,
+    ) -> SimpleAction {
+        use glib::object::Downcast;
+
+        let ptype:Option<String> = parameter_type.into().map(|p| p.to_str().to_string());
+
+        unsafe {
+            glib::Object::new(Self::static_type(), &[
+                ("name", &name),
+                ("parameter-type", &ptype),
+                ("state", &state),
+            ])
                 .unwrap()
                 .downcast_unchecked()
         }
@@ -149,6 +251,14 @@ impl SimpleAction {
 gobject_subclass_deref!(SimpleAction, Object);
 
 #[test]
-fn test_create() {
-    let obj = SimpleAction::new();
+fn test_basic() {
+    let action = SimpleAction::new("foo", None);
+
+    assert!(action.get_enabled());
+    assert!(action.get_parameter_type().is_none());
+    assert!(action.get_state_type().is_none());
+    assert!(action.get_state_hint().is_none());
+    assert!(action.get_state().is_none());
+
+
 }
