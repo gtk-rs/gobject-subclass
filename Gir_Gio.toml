@@ -1,0 +1,38 @@
+[options]
+girs_dir = "./gir-files"
+library = "Gio"
+library_export = "gio-subclass"
+version = "2.0"
+min_cfg_version = "2.32"
+target_path = "./gio-subclass"
+work_mode = "subclass"
+
+generate = []
+
+manual = [
+    "GLib.Bytes",
+    "GLib.Error",
+    "GLib.Variant",
+    "GLib.VariantType",
+    "GObject.Object",
+]
+
+[[object]]
+name = "Gio.Application"
+status = "generate"
+trait = true
+    [[object.virtual_method]]
+    name = "handle_local_options"
+    ignore = true
+
+    [[object.virtual_method]]
+    name = "add_platform_data"
+    ignore = true
+
+    [[object.virtual_method]]
+    name = "dbus_register"
+    ignore = true
+
+    [[object.virtual_method]]
+    name = "dbus_unregister"
+    ignore = true

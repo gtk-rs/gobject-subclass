@@ -10,4 +10,5 @@ extern crate gobject_sys as gobject_ffi;
 #[macro_use]
 extern crate gobject_subclass;
 
-pub mod application;
+mod auto;
+pub use auto::application;
