@@ -19,6 +19,7 @@ use glib::prelude::*;
 use glib::translate::*;
 extern crate gio;
 use gio::prelude::*;
+extern crate gio_sys as gio_ffi;
 
 use glib::value::AnyValue;
 
@@ -201,7 +202,8 @@ mod imp {
 
 glib_wrapper! {
     pub struct SimpleAction(Object<imp::SimpleAction>):
-        [Object => InstanceStruct<Object>];
+        [Object => InstanceStruct<Object>,
+         gio::Action => gio_ffi::GAction];
 
     match fn {
         get_type => || imp::SimpleAction::get_type().to_glib(),
