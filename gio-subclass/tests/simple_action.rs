@@ -112,9 +112,10 @@ mod imp {
         }
 
         fn init(obj: &Object) -> Box<ObjectImpl<Object>> {
-            let imp = SimpleAction{
+            let imp = SimpleAction {
                 enabled: RefCell::new(true),
-                ..SimpleAction::default()};
+                ..SimpleAction::default()
+            };
             Box::new(imp)
         }
     }
@@ -127,15 +128,15 @@ mod imp {
                 Property::String("name", ..) => {
                     let name = value.get();
                     self.name.replace(name.clone());
-                },
+                }
                 Property::Boxed("parameter-type", ..) => {
                     let ptype: Option<glib::VariantType> = value.get();
                     self.parameter_type.replace(ptype.clone());
-                },
+                }
                 Property::Variant("state-type", ..) => {
-                    let name = value.get();
-                    self.state_type.replace(name.clone());
-                },
+                    let stype = value.get();
+                    self.state_type.replace(stype.clone());
+                }
                 _ => unimplemented!(),
             }
         }
@@ -145,8 +146,12 @@ mod imp {
 
             match *prop {
                 Property::String("name", ..) => Ok(self.name.borrow().clone().to_value()),
-                Property::Boxed("parameter-type", ..) => Ok(self.parameter_type.borrow().clone().to_value()),
-                Property::Boxed("state-type", ..) => Ok(self.state_type.borrow().clone().to_value()),
+                Property::Boxed("parameter-type", ..) => {
+                    Ok(self.parameter_type.borrow().clone().to_value())
+                }
+                Property::Boxed("state-type", ..) => {
+                    Ok(self.state_type.borrow().clone().to_value())
+                }
                 _ => unimplemented!(),
             }
         }
@@ -170,19 +175,19 @@ mod imp {
         }
 
         fn get_parameter_type(&self, action: &gio::Action) -> Option<glib::VariantType> {
-            unimplemented!();
+            self.parameter_type.borrow().clone()
         }
 
         fn get_state(&self, action: &gio::Action) -> Option<glib::Variant> {
-            unimplemented!();
+            self.state.borrow().clone()
         }
 
         fn get_state_hint(&self, action: &gio::Action) -> Option<glib::Variant> {
-            unimplemented!();
+            self.state_hint.borrow().clone()
         }
 
         fn get_state_type(&self, action: &gio::Action) -> Option<glib::VariantType> {
-            unimplemented!();
+            self.state_type.borrow().clone()
         }
     }
 
@@ -233,12 +238,10 @@ impl SimpleAction {
         let ty: Option<glib::VariantType> = parameter_type.into().map(ToOwned::to_owned);
 
         unsafe {
-            let obj = glib::Object::new(Self::static_type(), &[
-                ("name", &name),
-                ("parameter-type", &ty.to_value())
-            ]);
-            println!("obj{:?}", obj );
-            obj.unwrap()
+            glib::Object::new(
+                Self::static_type(),
+                &[("name", &name), ("parameter-type", &ty.to_value())],
+            ).unwrap()
                 .downcast_unchecked()
         }
     }
@@ -251,12 +254,14 @@ impl SimpleAction {
         use glib::object::Downcast;
 
         unsafe {
-            glib::Object::new(Self::static_type(), &[
-                ("name", &name),
-                ("parameter-type", &parameter_type.into()),
-                ("state", &state),
-            ])
-                .unwrap()
+            glib::Object::new(
+                Self::static_type(),
+                &[
+                    ("name", &name),
+                    ("parameter-type", &parameter_type.into()),
+                    ("state", &state),
+                ],
+            ).unwrap()
                 .downcast_unchecked()
         }
     }
@@ -266,14 +271,11 @@ gobject_subclass_deref!(SimpleAction, Object);
 
 #[test]
 fn test_basic() {
-    // let v = glib::VariantTy::new("*").unwrap();
     let action = SimpleAction::new("foo", None);
 
     assert!(action.get_enabled());
-    //assert!(action.get_parameter_type().is_none());
+    assert!(action.get_parameter_type().is_none());
     assert!(action.get_state_type().is_none());
-    // assert!(action.get_state_hint().is_none());
-    // assert!(action.get_state().is_none());
-
-
+    assert!(action.get_state_hint().is_none());
+    assert!(action.get_state().is_none());
 }
