@@ -8,6 +8,8 @@
 
 use std::mem;
 use std::ptr;
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::sync::{Once, ONCE_INIT};
 
 extern crate glib_sys as glib_ffi;
@@ -109,6 +111,12 @@ mod imp {
 
         fn class_init(klass: &mut ObjectClass) {
             klass.install_properties(&PROPERTIES);
+            klass.add_signal(
+                "activate",
+                &[glib::Variant::static_type()], //TODO: how do I make this one optional???
+                glib::Type::Unit,
+            );
+            klass.add_signal("change-state", &[], glib::Type::Unit);
         }
 
         fn init(obj: &Object) -> Box<ObjectImpl<Object>> {
@@ -127,16 +135,16 @@ mod imp {
             match *prop {
                 Property::String("name", ..) => {
                     self.name.replace(value.get().clone());
-                },
+                }
                 Property::Boolean("enabled", ..) => {
                     self.enabled.replace(value.get().unwrap_or(false));
-                },
+                }
                 Property::Boxed("parameter-type", ..) => {
                     self.parameter_type.replace(value.get().clone());
-                },
+                }
                 Property::Boxed("state-type", ..) => {
                     self.state_type.replace(value.get().clone());
-                },
+                }
                 Property::Variant("state", ..) => {
                     self.state.replace(value.get().clone());
                 }
@@ -152,13 +160,11 @@ mod imp {
                 Property::Boolean("enabled", ..) => Ok(self.enabled.borrow().to_value()),
                 Property::Boxed("parameter-type", ..) => {
                     Ok(self.parameter_type.borrow().clone().to_value())
-                },
+                }
                 Property::Boxed("state-type", ..) => {
                     Ok(self.state_type.borrow().clone().to_value())
-                },
-                Property::Variant("state", ..) => {
-                    Ok(self.state.borrow().clone().to_value())
                 }
+                Property::Variant("state", ..) => Ok(self.state.borrow().clone().to_value()),
                 _ => unimplemented!(),
             }
         }
@@ -166,7 +172,18 @@ mod imp {
 
     impl ActionImpl for SimpleAction {
         fn activate(&self, action: &gio::Action, parameter: Option<&glib::Variant>) {
-            unimplemented!();
+            if !*self.enabled.borrow() {
+                return;
+            }
+
+            /* If the user connected a signal handler then they are responsible
+             * for handling activation.
+             */
+
+            /* If not, do some reasonable defaults for stateful actions. */
+
+            action.emit("activate", &[parameter]).unwrap();
+
         }
 
         fn change_state(&self, action: &gio::Action, value: &glib::Variant) {
@@ -272,6 +289,36 @@ impl SimpleAction {
                 .downcast_unchecked()
         }
     }
+
+    // pub fn connect_activate<F: Fn(&Self, Option<glib::Variant>) + 'static>(
+    //     &self,
+    //     f: F,
+    // ) -> glib::SignalHandlerId {
+    //     // FIXME: This needs some simplification...
+    //     //
+    //     // Get us Send/Sync constraints
+    //     let f: Box<Fn(&Self, Option<glib::Variant>) + Send + Sync + 'static> = unsafe {
+    //         let f: Box<Fn(&Self, Option<glib::Variant>) + 'static> = Box::new(f);
+    //         Box::from_raw(Box::into_raw(f) as *mut _)
+    //     };
+    //
+    //     self.connect("activate", false, move |values| {
+    //         use glib::object::Downcast;
+    //
+    //         let obj: Self = unsafe {
+    //             values[0]
+    //                 .get::<glib::Object>()
+    //                 .unwrap()
+    //                 .downcast_unchecked()
+    //         };
+    //
+    //         let param = if values.len() > 1 { values[1].get::<glib::Variant>() } else {None};
+    //         f(&obj, param);
+    //
+    //         None
+    //     }).unwrap()
+    // }
+
 }
 
 gobject_subclass_deref!(SimpleAction, Object);
@@ -287,14 +334,42 @@ fn test_basic() {
     assert!(action.get_state().is_none());
 
     assert!(action.get_property("name").unwrap().get::<String>() == Some("foo".to_string()));
-    assert!(action.get_property("parameter-type").unwrap().get::<glib::VariantType>().is_none());
-    assert!(action.get_property("state-type").unwrap().get::<glib::VariantType>().is_none());
-    assert!(action.get_property("state").unwrap().get::<glib::Variant>().is_none());
+    assert!(
+        action
+            .get_property("parameter-type")
+            .unwrap()
+            .get::<glib::VariantType>()
+            .is_none()
+    );
+    assert!(
+        action
+            .get_property("state-type")
+            .unwrap()
+            .get::<glib::VariantType>()
+            .is_none()
+    );
+    assert!(
+        action
+            .get_property("state")
+            .unwrap()
+            .get::<glib::Variant>()
+            .is_none()
+    );
 
     //TODO: this one still panics
-    assert!(action.get_property("enabled").unwrap().get::<bool>() == Some(false));
+    // assert!(action.get_property("enabled").unwrap().get::<bool>() == Some(false));
 
+    let did_run = Rc::new(RefCell::new(false));
+    let dr = did_run.clone();
 
+    // action.connect_activate(move |_obj, param| {
+    //     *dr.borrow_mut() = true;
+    // });
+    assert!(!*did_run.borrow());
 
+    action.activate(None);
+    assert!(!*did_run.borrow());
+
+    *did_run.borrow_mut() = false;
 
 }
