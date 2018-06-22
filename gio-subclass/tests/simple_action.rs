@@ -113,7 +113,7 @@ mod imp {
             klass.install_properties(&PROPERTIES);
             klass.add_signal(
                 "activate",
-                &[glib::Variant::static_type()], //TODO: how do I make this one optional???
+                &[glib::Variant::static_type()],
                 glib::Type::Unit,
             );
             klass.add_signal("change-state", &[], glib::Type::Unit);
@@ -172,6 +172,15 @@ mod imp {
 
     impl ActionImpl for SimpleAction {
         fn activate(&self, action: &gio::Action, parameter: Option<&glib::Variant>) {
+
+            match *self.parameter_type.borrow(){
+                None => assert!(parameter.is_none()),
+                Some(ref t) => {
+                    assert!(parameter.is_some());
+                    assert!(parameter.unwrap().type_() == t);
+                }
+            };
+
             if !*self.enabled.borrow() {
                 return;
             }
@@ -182,7 +191,15 @@ mod imp {
 
             /* If not, do some reasonable defaults for stateful actions. */
 
-            action.emit("activate", &[parameter]).unwrap();
+            match parameter{
+                Some(p) => { action.emit("activate", &[p]).unwrap(); },
+
+                None => {
+                    //FIXME: how can we propagate the optional nature of the arg?
+                    //       the value created here seems dangling for glib, and panics
+                    action.emit("activate", &[&glib::Variant::from(false)]).unwrap();
+                }
+            };
 
         }
 
@@ -290,34 +307,34 @@ impl SimpleAction {
         }
     }
 
-    // pub fn connect_activate<F: Fn(&Self, Option<glib::Variant>) + 'static>(
-    //     &self,
-    //     f: F,
-    // ) -> glib::SignalHandlerId {
-    //     // FIXME: This needs some simplification...
-    //     //
-    //     // Get us Send/Sync constraints
-    //     let f: Box<Fn(&Self, Option<glib::Variant>) + Send + Sync + 'static> = unsafe {
-    //         let f: Box<Fn(&Self, Option<glib::Variant>) + 'static> = Box::new(f);
-    //         Box::from_raw(Box::into_raw(f) as *mut _)
-    //     };
-    //
-    //     self.connect("activate", false, move |values| {
-    //         use glib::object::Downcast;
-    //
-    //         let obj: Self = unsafe {
-    //             values[0]
-    //                 .get::<glib::Object>()
-    //                 .unwrap()
-    //                 .downcast_unchecked()
-    //         };
-    //
-    //         let param = if values.len() > 1 { values[1].get::<glib::Variant>() } else {None};
-    //         f(&obj, param);
-    //
-    //         None
-    //     }).unwrap()
-    // }
+    pub fn connect_activate<F: Fn(&Self, Option<glib::Variant>) + 'static>(
+        &self,
+        f: F,
+    ) -> glib::SignalHandlerId {
+        // FIXME: This needs some simplification...
+        //
+        // Get us Send/Sync constraints
+        let f: Box<Fn(&Self, Option<glib::Variant>) + Send + Sync + 'static> = unsafe {
+            let f: Box<Fn(&Self, Option<glib::Variant>) + 'static> = Box::new(f);
+            Box::from_raw(Box::into_raw(f) as *mut _)
+        };
+
+        self.connect("activate", false, move |values| {
+            use glib::object::Downcast;
+
+            let obj: Self = unsafe {
+                values[0]
+                    .get::<glib::Object>()
+                    .unwrap()
+                    .downcast_unchecked()
+            };
+
+            let param = if values.len() > 1 { values[1].get::<glib::Variant>() } else {None};
+            f(&obj, param);
+
+            None
+        }).unwrap()
+    }
 
 }
 
@@ -362,9 +379,9 @@ fn test_basic() {
     let did_run = Rc::new(RefCell::new(false));
     let dr = did_run.clone();
 
-    // action.connect_activate(move |_obj, param| {
-    //     *dr.borrow_mut() = true;
-    // });
+    action.connect_activate(move |_obj, param| {
+        *dr.borrow_mut() = true;
+    });
     assert!(!*did_run.borrow());
 
     action.activate(None);
