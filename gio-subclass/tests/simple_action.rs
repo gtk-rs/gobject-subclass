@@ -126,16 +126,19 @@ mod imp {
 
             match *prop {
                 Property::String("name", ..) => {
-                    let name = value.get();
-                    self.name.replace(name.clone());
-                }
+                    self.name.replace(value.get().clone());
+                },
+                Property::Boolean("enabled", ..) => {
+                    self.enabled.replace(value.get().unwrap_or(false));
+                },
                 Property::Boxed("parameter-type", ..) => {
-                    let ptype: Option<glib::VariantType> = value.get();
-                    self.parameter_type.replace(ptype.clone());
-                }
-                Property::Variant("state-type", ..) => {
-                    let stype = value.get();
-                    self.state_type.replace(stype.clone());
+                    self.parameter_type.replace(value.get().clone());
+                },
+                Property::Boxed("state-type", ..) => {
+                    self.state_type.replace(value.get().clone());
+                },
+                Property::Variant("state", ..) => {
+                    self.state.replace(value.get().clone());
                 }
                 _ => unimplemented!(),
             }
@@ -146,11 +149,15 @@ mod imp {
 
             match *prop {
                 Property::String("name", ..) => Ok(self.name.borrow().clone().to_value()),
+                Property::Boolean("enabled", ..) => Ok(self.enabled.borrow().to_value()),
                 Property::Boxed("parameter-type", ..) => {
                     Ok(self.parameter_type.borrow().clone().to_value())
-                }
+                },
                 Property::Boxed("state-type", ..) => {
                     Ok(self.state_type.borrow().clone().to_value())
+                },
+                Property::Variant("state", ..) => {
+                    Ok(self.state.borrow().clone().to_value())
                 }
                 _ => unimplemented!(),
             }
@@ -171,7 +178,7 @@ mod imp {
         }
 
         fn get_name(&self, action: &gio::Action) -> Option<String> {
-            unimplemented!();
+            self.name.borrow().clone()
         }
 
         fn get_parameter_type(&self, action: &gio::Action) -> Option<glib::VariantType> {
@@ -278,4 +285,16 @@ fn test_basic() {
     assert!(action.get_state_type().is_none());
     assert!(action.get_state_hint().is_none());
     assert!(action.get_state().is_none());
+
+    assert!(action.get_property("name").unwrap().get::<String>() == Some("foo".to_string()));
+    assert!(action.get_property("parameter-type").unwrap().get::<glib::VariantType>().is_none());
+    assert!(action.get_property("state-type").unwrap().get::<glib::VariantType>().is_none());
+    assert!(action.get_property("state").unwrap().get::<glib::Variant>().is_none());
+
+    //TODO: this one still panics
+    assert!(action.get_property("enabled").unwrap().get::<bool>() == Some(false));
+
+
+
+
 }
