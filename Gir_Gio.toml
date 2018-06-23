@@ -8,7 +8,8 @@ target_path = "./gio-subclass"
 work_mode = "subclass"
 
 generate = [
-    "Gio.Action"
+    "Gio.Action",
+    "Gio.ActionGroup"
 ]
 
 manual = [
