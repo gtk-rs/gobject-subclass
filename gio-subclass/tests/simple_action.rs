@@ -385,7 +385,7 @@ fn test_basic() {
     assert!(!*did_run.borrow());
 
     action.activate(None);
-    assert!(!*did_run.borrow());
+    assert!(*did_run.borrow());
 
     *did_run.borrow_mut() = false;
 
