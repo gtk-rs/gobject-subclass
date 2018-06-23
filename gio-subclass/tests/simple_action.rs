@@ -373,8 +373,7 @@ fn test_basic() {
             .is_none()
     );
 
-    //TODO: this one still panics
-    // assert!(action.get_property("enabled").unwrap().get::<bool>() == Some(false));
+    assert!(action.get_property("enabled").unwrap().get::<bool>().unwrap());
 
     let did_run = Rc::new(RefCell::new(false));
     let dr = did_run.clone();
