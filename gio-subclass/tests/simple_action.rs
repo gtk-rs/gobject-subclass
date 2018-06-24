@@ -193,12 +193,7 @@ mod imp {
 
             match parameter{
                 Some(p) => { action.emit("activate", &[p]).unwrap(); },
-
-                None => {
-                    //FIXME: how can we propagate the optional nature of the arg?
-                    //       the value created here seems dangling for glib, and panics
-                    action.emit("activate", &[&glib::Variant::from(false)]).unwrap();
-                }
+                None => { action.emit("activate", &[&None::<glib::Variant>]).unwrap(); }
             };
 
         }
