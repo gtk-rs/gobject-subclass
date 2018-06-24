@@ -1,5 +1,5 @@
-unsafe extern "C" fn action_get_state<T: ObjectType>
-(gptr: *mut gio_ffi::GAction) -> *mut glib_ffi::GVariant
+unsafe extern "C" fn action_get_state_type<T: ObjectType>
+(gptr: *mut gio_ffi::GAction) -> *const glib_ffi::GVariantType
 {
     floating_reference_guard!(gptr);
     let klass = &**(gptr as *const *const ClassStruct<T>);
@@ -9,17 +9,16 @@ unsafe extern "C" fn action_get_state<T: ObjectType>
     let imp = instance.get_impl();
     let imp = (*(*interface_static).imp_static).get_impl(imp);
     let wrap = from_glib_borrow(gptr);
-
-    match imp.get_state(&wrap){
+    match imp.get_state_type(&wrap){
         Some(t)  => {
             let ret = t.to_glib_full();
             gobject_ffi::g_object_set_qdata_full(gptr as *mut gobject_ffi::GObject,
-                glib_ffi::g_quark_from_string("rs_action_state".to_glib_none().0),
+                glib_ffi::g_quark_from_string("rs_state_type".to_glib_none().0),
                 ret as *mut c_void,
-                None //TODO: how do we free the data here?
+                None //TODO: how do we free the data
             );
             ret
         },
-        None => ptr::null_mut()
+        None => ptr::null()
     }
 }
