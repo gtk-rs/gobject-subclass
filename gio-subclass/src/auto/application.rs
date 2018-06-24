@@ -388,7 +388,6 @@ unsafe extern "C" fn application_activate<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);
@@ -401,7 +400,6 @@ unsafe extern "C" fn application_after_emit<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);
@@ -414,7 +412,6 @@ unsafe extern "C" fn application_before_emit<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);
@@ -427,7 +424,6 @@ unsafe extern "C" fn application_command_line<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);
@@ -442,7 +438,6 @@ unsafe extern "C" fn application_local_command_line<T: ApplicationBase>(
 where
     T::ImplType: ApplicationImpl<T>,
 {
-    callback_guard!();
     floating_reference_guard!(ptr);
     let application = &*(ptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(ptr as *mut T::InstanceStructType);
@@ -466,7 +461,6 @@ unsafe extern "C" fn application_open<T: ApplicationBase>(
 ) where
     T::ImplType: ApplicationImpl<T>,
 {
-    callback_guard!();
     floating_reference_guard!(ptr);
     let application = &*(ptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(ptr as *mut T::InstanceStructType);
@@ -482,7 +476,6 @@ unsafe extern "C" fn application_quit_mainloop<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);
@@ -495,7 +488,6 @@ unsafe extern "C" fn application_run_mainloop<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);
@@ -508,7 +500,6 @@ unsafe extern "C" fn application_shutdown<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);
@@ -521,7 +512,6 @@ unsafe extern "C" fn application_startup<T: ApplicationBase>
 where
     T::ImplType: ApplicationImpl<T>
 {
-    callback_guard!();
     floating_reference_guard!(gptr);
     let application = &*(gptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(gptr as *mut T::InstanceStructType);

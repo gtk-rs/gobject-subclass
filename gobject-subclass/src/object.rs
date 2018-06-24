@@ -245,7 +245,6 @@ where
             handler_return: *const gobject_ffi::GValue,
             data: glib_ffi::gpointer,
         ) -> glib_ffi::gboolean {
-            callback_guard!();
             let accumulator: &&(Fn(&mut glib::Value, &glib::Value) -> bool
                                     + Send
                                     + Sync
@@ -304,7 +303,6 @@ unsafe extern "C" fn class_init<T: ObjectType>(
     klass: glib_ffi::gpointer,
     _klass_data: glib_ffi::gpointer,
 ) {
-    callback_guard!();
     {
         let gobject_klass = &mut *(klass as *mut gobject_ffi::GObjectClass);
 
@@ -323,7 +321,6 @@ unsafe extern "C" fn class_init<T: ObjectType>(
 }
 
 unsafe extern "C" fn finalize<T: ObjectType>(obj: *mut gobject_ffi::GObject) {
-    callback_guard!();
     let instance = &mut *(obj as *mut T::InstanceStructType);
 
     drop(Box::from_raw(instance.get_impl() as *const _ as *mut T::ImplType));
@@ -392,7 +389,6 @@ unsafe extern "C" fn sub_class_init<T: ObjectType>(
     klass: glib_ffi::gpointer,
     klass_data: glib_ffi::gpointer,
 ) {
-    callback_guard!();
     {
         let gobject_klass = &mut *(klass as *mut gobject_ffi::GObjectClass);
 
@@ -416,7 +412,6 @@ unsafe extern "C" fn sub_get_property<T: ObjectType>(
     value: *mut gobject_ffi::GValue,
     _pspec: *mut gobject_ffi::GParamSpec,
 ) {
-    callback_guard!();
     floating_reference_guard!(obj);
     let instance = &*(obj as *mut T::InstanceStructType);
     let imp = instance.get_impl();
@@ -437,7 +432,6 @@ unsafe extern "C" fn sub_set_property<T: ObjectType>(
     value: *mut gobject_ffi::GValue,
     _pspec: *mut gobject_ffi::GParamSpec,
 ) {
-    callback_guard!();
     floating_reference_guard!(obj);
     let instance = &*(obj as *mut T::InstanceStructType);
     let imp = instance.get_impl();
@@ -452,7 +446,6 @@ unsafe extern "C" fn sub_init<T: ObjectType>(
     obj: *mut gobject_ffi::GTypeInstance,
     _klass: glib_ffi::gpointer,
 ) {
-    callback_guard!();
     floating_reference_guard!(obj);
     let instance = &mut *(obj as *mut T::InstanceStructType);
     let klass = &**(obj as *const *const ClassStruct<T>);

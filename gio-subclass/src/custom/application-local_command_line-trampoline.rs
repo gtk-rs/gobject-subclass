@@ -6,7 +6,6 @@ unsafe extern "C" fn application_local_command_line<T: ApplicationBase>(
 where
     T::ImplType: ApplicationImpl<T>,
 {
-    callback_guard!();
     floating_reference_guard!(ptr);
     let application = &*(ptr as *mut T::InstanceStructType);
     let wrap: T = from_glib_borrow(ptr as *mut T::InstanceStructType);
