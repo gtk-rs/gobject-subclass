@@ -118,6 +118,11 @@ unsafe extern "C" fn action_get_name<T: ObjectType>
     let imp = instance.get_impl();
     let imp = (*(*interface_static).imp_static).get_impl(imp);
     let wrap = from_glib_borrow(gptr);
+
+    unsafe extern "C" fn destroy(p: glib_ffi::gpointer){
+        glib_ffi::g_free(p);
+    };
+
     match imp.get_name(&wrap)
     {
         Some(t) => {
@@ -125,7 +130,7 @@ unsafe extern "C" fn action_get_name<T: ObjectType>
             gobject_ffi::g_object_set_qdata_full(gptr as *mut gobject_ffi::GObject,
                 glib_ffi::g_quark_from_string("rs_get_name".to_glib_none().0),
                 ret as *mut c_void,
-                Some(<String as FreeGlibPtr>::free)
+                Some(destroy)
             );
             ret
         },
@@ -144,6 +149,11 @@ unsafe extern "C" fn action_get_parameter_type<T: ObjectType>
     let imp = instance.get_impl();
     let imp = (*(*interface_static).imp_static).get_impl(imp);
     let wrap = from_glib_borrow(gptr);
+
+    unsafe extern "C" fn destroy(p: glib_ffi::gpointer){
+        glib_ffi::g_variant_type_free(p as *mut glib_ffi::GVariantType);
+    };
+
     match imp.get_parameter_type(&wrap)
     {
         Some(t) => {
@@ -151,7 +161,7 @@ unsafe extern "C" fn action_get_parameter_type<T: ObjectType>
             gobject_ffi::g_object_set_qdata_full(gptr as *mut gobject_ffi::GObject,
                 glib_ffi::g_quark_from_string("rs_get_parameter_type".to_glib_none().0),
                 ret as *mut c_void,
-                Some(<glib::VariantType as FreeGlibPtr>::free)
+                Some(destroy)
             );
             ret
         },
@@ -198,6 +208,11 @@ unsafe extern "C" fn action_get_state_type<T: ObjectType>
     let imp = instance.get_impl();
     let imp = (*(*interface_static).imp_static).get_impl(imp);
     let wrap = from_glib_borrow(gptr);
+
+    unsafe extern "C" fn destroy(p: glib_ffi::gpointer){
+        glib_ffi::g_free(p);
+    };
+
     match imp.get_state_type(&wrap)
     {
         Some(t) => {
@@ -205,7 +220,7 @@ unsafe extern "C" fn action_get_state_type<T: ObjectType>
             gobject_ffi::g_object_set_qdata_full(gptr as *mut gobject_ffi::GObject,
                 glib_ffi::g_quark_from_string("rs_get_state_type".to_glib_none().0),
                 ret as *mut c_void,
-                Some(<glib::VariantType as FreeGlibPtr>::free)
+                Some(destroy)
             );
             ret
         },
