@@ -10,6 +10,8 @@ use libc::{c_int, c_char, c_uchar, c_float, c_uint, c_double,
 #[allow(unused_imports)]
 use glib_ffi::{gboolean, gconstpointer, gpointer, GType};
 
+use free::*;
+
 #[cfg(any(feature = "v2_38", feature = "dox"))]
 use Error;
 use gio;
@@ -123,7 +125,7 @@ unsafe extern "C" fn action_get_name<T: ObjectType>
             gobject_ffi::g_object_set_qdata_full(gptr as *mut gobject_ffi::GObject,
                 glib_ffi::g_quark_from_string("rs_get_name".to_glib_none().0),
                 ret as *mut c_void,
-                None //TODO: how do we free the data
+                Some(<String as FreeGlibPtr>::free)
             );
             ret
         },
@@ -149,7 +151,7 @@ unsafe extern "C" fn action_get_parameter_type<T: ObjectType>
             gobject_ffi::g_object_set_qdata_full(gptr as *mut gobject_ffi::GObject,
                 glib_ffi::g_quark_from_string("rs_get_parameter_type".to_glib_none().0),
                 ret as *mut c_void,
-                None //TODO: how do we free the data
+                Some(<glib::VariantType as FreeGlibPtr>::free)
             );
             ret
         },
@@ -203,7 +205,7 @@ unsafe extern "C" fn action_get_state_type<T: ObjectType>
             gobject_ffi::g_object_set_qdata_full(gptr as *mut gobject_ffi::GObject,
                 glib_ffi::g_quark_from_string("rs_get_state_type".to_glib_none().0),
                 ret as *mut c_void,
-                None //TODO: how do we free the data
+                Some(<glib::VariantType as FreeGlibPtr>::free)
             );
             ret
         },
@@ -253,5 +255,5 @@ pub fn register_action<T: ObjectType, I: ActionImplStatic<T>>(
             &iface_info,
         );
     }
-        
+
 }
