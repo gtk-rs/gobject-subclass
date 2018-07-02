@@ -11,6 +11,5 @@ extern crate gobject_sys as gobject_ffi;
 extern crate gobject_subclass;
 
 mod auto;
-mod free;
 pub use auto::application;
 pub use auto::action;
