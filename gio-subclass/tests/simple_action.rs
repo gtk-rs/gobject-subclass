@@ -43,17 +43,14 @@ mod imp {
             "Action Name",
             "The name used to invoke the action",
             None,
-            PropertyMutability::ReadWrite // | PropertyMutability::ConstructOnly
-                // | PropertyMutability::StaticStrings,
+            PropertyMutability::ReadWrite
         ),
         Property::Boxed(
             "parameter-type",
             "Parameter Type",
             "The type of GVariant passed to activate()",
             glib::VariantType::static_type,
-            PropertyMutability::ReadWrite// |
-            // PropertyMutability::ConstructOnly |
-            // PropertyMutability::StaticStrings,
+            PropertyMutability::ReadWrite
         ),
         Property::Boolean(
             "enabled",
@@ -61,16 +58,13 @@ mod imp {
             "If the action can be activated",
             true,
             PropertyMutability::ReadWrite
-             // | PropertyMutability::StaticStrings,
         ),
         Property::Boxed(
             "state-type",
             "State Type",
             "The type of the state kept by the action",
             glib::VariantType::static_type,
-            PropertyMutability::ReadWrite //|
-            // PropertyMutability::ConstructOnly |
-            // PropertyMutability::StaticStrings,
+            PropertyMutability::ReadWrite
         ),
         Property::Variant(
             "state",
@@ -78,8 +72,7 @@ mod imp {
             "The state the action is in",
             || glib::VariantType::new("*").unwrap(),
             None,
-            PropertyMutability::ReadWrite //|
-            //PropertyMutability::StaticStrings,
+            PropertyMutability::ReadWrite
         ),
     ];
 

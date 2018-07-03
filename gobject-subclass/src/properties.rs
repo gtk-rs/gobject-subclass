@@ -15,9 +15,7 @@ use glib::translate::*;
 pub enum PropertyMutability {
     Readable,
     Writable,
-    ReadWrite,
-    Construct,
-    ConstructOnly
+    ReadWrite
 }
 
 impl Into<gobject_ffi::GParamFlags> for PropertyMutability {
@@ -27,9 +25,7 @@ impl Into<gobject_ffi::GParamFlags> for PropertyMutability {
         match self {
             Readable => gobject_ffi::G_PARAM_READABLE,
             Writable => gobject_ffi::G_PARAM_WRITABLE,
-            ReadWrite => gobject_ffi::G_PARAM_READWRITE,
-            Construct => gobject_ffi::G_PARAM_CONSTRUCT,
-            ConstructOnly => gobject_ffi::G_PARAM_CONSTRUCT_ONLY
+            ReadWrite => gobject_ffi::G_PARAM_READWRITE
         }
     }
 }
