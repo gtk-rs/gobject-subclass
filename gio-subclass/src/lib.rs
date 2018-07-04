@@ -12,3 +12,4 @@ extern crate gobject_subclass;
 
 mod auto;
 pub use auto::application;
+pub use auto::action;

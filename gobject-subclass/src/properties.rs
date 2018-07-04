@@ -15,7 +15,7 @@ use glib::translate::*;
 pub enum PropertyMutability {
     Readable,
     Writable,
-    ReadWrite,
+    ReadWrite
 }
 
 impl Into<gobject_ffi::GParamFlags> for PropertyMutability {
@@ -25,7 +25,7 @@ impl Into<gobject_ffi::GParamFlags> for PropertyMutability {
         match self {
             Readable => gobject_ffi::G_PARAM_READABLE,
             Writable => gobject_ffi::G_PARAM_WRITABLE,
-            ReadWrite => gobject_ffi::G_PARAM_READWRITE,
+            ReadWrite => gobject_ffi::G_PARAM_READWRITE
         }
     }
 }
@@ -100,6 +100,14 @@ pub enum Property<'a> {
         &'a str,
         &'a str,
         fn() -> glib::Type,
+        PropertyMutability,
+    ),
+    Variant(
+        &'a str,
+        &'a str,
+        &'a str,
+        fn() -> glib::VariantType,
+        Option<&'a glib::Variant>,
         PropertyMutability,
     ),
 }
@@ -207,6 +215,16 @@ impl<'a> Into<*mut gobject_ffi::GParamSpec> for &'a Property<'a> {
                         nick.to_glib_none().0,
                         description.to_glib_none().0,
                         get_type().to_glib(),
+                        mutability.into(),
+                    )
+                }
+                Property::Variant(name, nick, description, get_type, default, mutability) => {
+                    gobject_ffi::g_param_spec_variant(
+                        name.to_glib_none().0,
+                        nick.to_glib_none().0,
+                        description.to_glib_none().0,
+                        get_type().to_glib_none().0,
+                        default.to_glib_none().0,
                         mutability.into(),
                     )
                 }
