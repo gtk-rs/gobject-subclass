@@ -14,3 +14,4 @@ mod auto;
 pub use auto::application;
 pub use auto::action;
 pub use auto::action_group;
+pub use auto::action_map;

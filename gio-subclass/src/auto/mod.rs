@@ -7,4 +7,6 @@ pub mod action;
 
 pub mod action_group;
 
+pub mod action_map;
+
 pub mod application;
