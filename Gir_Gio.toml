@@ -9,7 +9,7 @@ work_mode = "subclass"
 
 generate = [
     "Gio.Action",
-    "Gio.ActionGroup"
+    "Gio.ActionGroup",
 ]
 
 manual = [
