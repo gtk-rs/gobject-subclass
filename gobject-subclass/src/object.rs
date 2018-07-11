@@ -30,12 +30,6 @@ pub trait ObjectImpl<T: ObjectBase>: AnyImpl + 'static {
     fn get_property(&self, _obj: &glib::Object, _id: u32) -> Result<glib::Value, ()> {
         unimplemented!()
     }
-
-    fn notify(&self, obj: &glib::Object, name: &str) {
-        unsafe {
-            gobject_ffi::g_object_notify(obj.to_glib_none().0, name.to_glib_none().0);
-        }
-    }
 }
 
 // warning: constraints is defined as a repetition to minimize code duplication.
