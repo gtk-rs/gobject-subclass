@@ -317,7 +317,9 @@ unsafe extern "C" fn class_init<T: ObjectType>(
 unsafe extern "C" fn finalize<T: ObjectType>(obj: *mut gobject_ffi::GObject) {
     let instance = &mut *(obj as *mut T::InstanceStructType);
 
-    drop(Box::from_raw(instance.get_impl() as *const _ as *mut T::ImplType));
+    drop(Box::from_raw(
+        instance.get_impl() as *const _ as *mut T::ImplType
+    ));
     instance.set_impl(ptr::NonNull::dangling());
 
     let klass = *(obj as *const glib_ffi::gpointer);
