@@ -147,9 +147,7 @@ impl<T: ObjectType> ClassStruct<T> {
     ) -> *const <T::ParentType as glib::wrapper::Wrapper>::GlibClassType {
         self.parent_class.as_ptr()
     }
-}
 
-impl<T: ObjectType> ClassStruct<T> {
     pub fn get_interface_static(&self, type_: glib_ffi::GType) -> glib_ffi::gpointer {
         unsafe {
             if self.interfaces_static.is_null() {
