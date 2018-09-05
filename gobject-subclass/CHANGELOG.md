@@ -9,4 +9,4 @@ specifically the [variant used by Rust](http://doc.crates.io/manifest.html#the-v
 
 - Initial release of gobject-subclass.
 
-[Unreleased]: https://github.com/sdroege/gobject-subclass/compare/0.1.0...HEAD
+[Unreleased]: https://github.com/gtk-rs/gobject-subclass/compare/0.1.0...HEAD

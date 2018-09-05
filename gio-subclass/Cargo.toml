@@ -3,7 +3,7 @@ name = "gio-subclass"
 version = "0.1.0"
 authors = ["Sebastian Dröge <sebastian@centricular.com>",
            "Dirk Van Haerenborgh <vhdirk@gmail.com>"]
-repository = "https://github.com/sdroege/gobject-subclass"
+repository = "https://github.com/gtk-rs/gobject-subclass"
 license = "MIT/Apache-2.0"
 
 [dependencies]
