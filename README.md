@@ -1,4 +1,4 @@
-# gobject-subclass [![crates.io](https://img.shields.io/crates/v/gobject-subclass.svg)](https://crates.io/crates/gobject-subclass) [![Build Status](https://travis-ci.org/sdroege/gobject-subclass.svg?branch=master)](https://travis-ci.org/sdroege/gobject-subclass)
+# gobject-subclass [![crates.io](https://img.shields.io/crates/v/gobject-subclass.svg)](https://crates.io/crates/gobject-subclass) [![Build Status](https://travis-ci.org/gtk-rs/gobject-subclass.svg?branch=master)](https://travis-ci.org/gtk-rs/gobject-subclass)
 
 Infrastructure for writing [GObject](https://developer.gnome.org/gobject/stable/)
 subclasses in the [Rust programming language](https://www.rust-lang.org/), and (in the future)
