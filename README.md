@@ -10,6 +10,8 @@ Example usage of this can be found here
  * [gst-plugin-rs](https://github.com/sdroege/gst-plugin-rs): GStreamer plugin
    writing infrastructure
  * [gtk-subclass](https://github.com/sdroege/gtk-subclass): GTK class bindings
+ * [Listbox Model Data implementation](https://github.com/gtk-rs/examples/raw/master/src/bin/listbox_model.rs):
+   This is a good, quick example of how to use this crate for gtk-rs related implementations.
 
 This is different to [gnome-class](https://gitlab.gnome.org/federico/gnome-class)
 as it does not require usage of a C#-like DSL in a heavy procedural macro, but
