@@ -7,8 +7,8 @@
 // except according to those terms.
 
 use std::mem;
+use std::ops;
 use std::ptr;
-use std::sync::{Once, ONCE_INIT};
 
 extern crate glib_sys as glib_ffi;
 extern crate gobject_sys as gobject_ffi;
@@ -18,9 +18,9 @@ extern crate glib;
 use glib::prelude::*;
 use glib::translate::*;
 
-#[macro_use]
 extern crate gobject_subclass;
 use gobject_subclass::object::*;
+use gobject_subclass::properties::*;
 
 mod imp {
     use super::*;
@@ -28,7 +28,7 @@ mod imp {
 
     pub struct SimpleObject {
         name: RefCell<Option<String>>,
-        parent: glib::WeakRef<Object>,
+        parent: glib::WeakRef<super::SimpleObject>,
     }
 
     static PROPERTIES: [Property; 1] = [Property::String(
@@ -39,33 +39,40 @@ mod imp {
         PropertyMutability::ReadWrite,
     )];
 
+    // TODO: want default ones for this
+    #[repr(C)]
+    pub struct SimpleObjectInstance {
+        parent: gobject_ffi::GObject,
+    }
+
+    impl InstanceStruct for SimpleObjectInstance {
+        type Type = SimpleObject;
+    }
+
+    // TODO: want default ones for this
+    #[repr(C)]
+    pub struct SimpleObjectClass {
+        parent_class: gobject_ffi::GObjectClass,
+    }
+
+    impl ClassStruct for SimpleObjectClass {
+        type Type = SimpleObject;
+    }
+
+    // TODO: macro for these, like glib_wrapper!() or in it even
+    unsafe impl IsAClass<ObjectClass> for SimpleObjectClass {}
+
     impl SimpleObject {
+        // TODO This should be a macro
         pub fn get_type() -> glib::Type {
-            static ONCE: Once = ONCE_INIT;
-            static mut TYPE: glib::Type = glib::Type::Invalid;
+            use std::sync::Once;
+            static ONCE: Once = Once::new();
 
             ONCE.call_once(|| {
-                let t = register_type(SimpleObjectStatic);
-                unsafe {
-                    TYPE = t;
-                }
+                register_type::<SimpleObject>();
             });
 
-            unsafe { TYPE }
-        }
-
-        fn class_init(klass: &mut ObjectClass) {
-            klass.install_properties(&PROPERTIES);
-
-            klass.add_signal("name-changed", &[String::static_type()], glib::Type::Unit);
-        }
-
-        fn init(obj: &Object) -> Box<ObjectImpl<Object>> {
-            let imp = Self {
-                name: RefCell::new(None),
-                parent: obj.downgrade(),
-            };
-            Box::new(imp)
+            Self::static_type()
         }
 
         pub fn set_name(&self, name: Option<&str>) {
@@ -80,7 +87,47 @@ mod imp {
         }
     }
 
-    impl ObjectImpl<Object> for SimpleObject {
+    unsafe impl ObjectSubclass for SimpleObject {
+        const NAME: &'static str = "SimpleObject";
+        type ParentType = glib::Object;
+        type Instance = SimpleObjectInstance;
+        type Class = SimpleObjectClass;
+        type RustType = super::SimpleObject;
+
+        // TODO: macro
+        fn type_data() -> ptr::NonNull<TypeData> {
+            static mut DATA: TypeData = TypeData {
+                type_: glib::Type::Invalid,
+                parent_class: ptr::null_mut(),
+                interfaces: ptr::null_mut(),
+                private_offset: 0,
+            };
+
+            unsafe { ptr::NonNull::new_unchecked(&mut DATA) }
+        }
+
+        fn class_init(klass: &mut SimpleObjectClass) {
+            ObjectClassExt::override_vfuncs(klass);
+
+            klass.install_properties(&PROPERTIES);
+
+            klass.add_signal("name-changed", &[String::static_type()], glib::Type::Unit);
+        }
+
+        fn new(obj: &super::SimpleObject) -> Self {
+            Self {
+                name: RefCell::new(None),
+                parent: obj.downgrade(),
+            }
+        }
+    }
+
+    impl ObjectImpl for SimpleObject {
+        // TODO macro
+        fn get_type_data(&self) -> ptr::NonNull<TypeData> {
+            Self::type_data()
+        }
+
         fn set_property(&self, obj: &glib::Object, id: u32, value: &glib::Value) {
             let prop = &PROPERTIES[id as usize];
 
@@ -102,31 +149,31 @@ mod imp {
                 _ => unimplemented!(),
             }
         }
-    }
 
-    struct SimpleObjectStatic;
-
-    impl ImplTypeStatic<Object> for SimpleObjectStatic {
-        fn get_name(&self) -> &str {
-            "SimpleObject"
-        }
-
-        fn new(&self, obj: &Object) -> Box<ObjectImpl<Object>> {
-            SimpleObject::init(obj)
-        }
-
-        fn class_init(&self, klass: &mut ObjectClass) {
-            SimpleObject::class_init(klass);
+        fn constructed(&self, obj: &glib::Object) {
+            self.parent_constructed(obj);
         }
     }
 }
 
 glib_wrapper! {
-    pub struct SimpleObject(Object<imp::SimpleObject>):
-        [Object => InstanceStruct<Object>];
+    pub struct SimpleObject(Object<imp::SimpleObjectInstance, imp::SimpleObjectClass>);
 
     match fn {
         get_type => || imp::SimpleObject::get_type().to_glib(),
+    }
+}
+
+impl ops::Deref for SimpleObject {
+    type Target = imp::SimpleObject;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe {
+            let stash = self.to_glib_none();
+            let ptr: *mut imp::SimpleObjectInstance = stash.0;
+            let imp = (*ptr).get_impl();
+            imp
+        }
     }
 }
 
@@ -168,11 +215,10 @@ impl SimpleObject {
             f(&obj, name);
 
             None
-        }).unwrap()
+        })
+        .unwrap()
     }
 }
-
-gobject_subclass_deref!(SimpleObject, Object);
 
 #[test]
 fn test_create() {

@@ -5,156 +5,89 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
-
-use std::any::TypeId;
-use std::collections::BTreeMap;
-use std::ffi::CString;
-use std::mem;
-use std::ptr;
-use std::sync::Mutex;
-
 use glib_ffi;
 use gobject_ffi;
+
+use std::mem;
+use std::ops;
+use std::ptr;
 
 use glib;
 use glib::translate::*;
 
-use anyimpl::*;
-pub use properties::*;
+use properties::*;
 
-pub trait ObjectImpl<T: ObjectBase>: AnyImpl + 'static {
-    fn set_property(&self, _obj: &glib::Object, _id: u32, _value: &glib::Value) {
-        unimplemented!()
-    }
+/// A newly registered `glib::Type` that is currently still being initialized
+///
+/// This allows running additional type-setup functions, e.g. for implementing
+/// interfaces on the type
+#[derive(Debug, PartialEq, Eq)]
+pub struct InitializingType(glib::Type);
 
-    fn get_property(&self, _obj: &glib::Object, _id: u32) -> Result<glib::Value, ()> {
-        unimplemented!()
-    }
-}
+impl ops::Deref for InitializingType {
+    type Target = glib::Type;
 
-// warning: constraints is defined as a repetition to minimize code duplication.
-// multiple items will generate invalide code.
-#[macro_export]
-macro_rules! box_object_impl(
-    ($name:ident $(, $constraint:ident)*) => {
-        impl<T: ObjectBase> ObjectImpl<T> for Box<$name<T>>
-        $(
-            where T::InstanceStructType: $constraint
-        )*
-        {
-            fn set_property(&self, obj: &glib::Object, id: u32, value: &glib::Value) {
-                let imp: &$name<T> = self.as_ref();
-                imp.set_property(obj, id, value);
-            }
-
-            fn get_property(&self, obj: &glib::Object, id: u32) -> Result<glib::Value, ()> {
-                let imp: &$name<T> = self.as_ref();
-                imp.get_property(obj, id)
-            }
-        }
-    };
-);
-
-box_object_impl!(ObjectImpl);
-
-pub trait ImplTypeStatic<T: ObjectType>: Send + Sync + 'static {
-    fn get_name(&self) -> &str;
-    fn new(&self, &T) -> T::ImplType;
-    fn class_init(&self, &mut ClassStruct<T>);
-    fn type_init(&self, _: &TypeInitToken, _type_: glib::Type) {}
-}
-
-pub struct ClassInitToken(());
-pub struct TypeInitToken(());
-
-pub trait ObjectType: FromGlibPtrBorrow<*mut <Self as ObjectType>::InstanceStructType>
-where
-    Self: glib::IsA<glib::Object> + Sized + 'static,
-    Self::InstanceStructType: Instance<Self>,
-{
-    const NAME: &'static str;
-    type InstanceStructType: Instance<Self> + 'static;
-    type ParentType: glib::IsA<glib::Object>;
-    type ImplType: ObjectImpl<Self>;
-
-    fn class_init(token: &ClassInitToken, klass: &mut ClassStruct<Self>);
-
-    unsafe fn get_instance(&self) -> *mut Self::InstanceStructType;
-
-    fn get_impl(&self) -> &Self::ImplType {
-        unsafe { (*self.get_instance()).get_impl() }
-    }
-
-    unsafe fn get_class(&self) -> *const ClassStruct<Self> {
-        (*self.get_instance()).get_class()
+    fn deref(&self) -> &glib::Type {
+        &self.0
     }
 }
 
-#[macro_export]
-macro_rules! object_type_fns(
-    () => {
-        unsafe fn get_instance(&self) -> *mut Self::InstanceStructType {
-            self.to_glib_none().0
-        }
-    }
-);
+/// Trait implemented by structs that implement a `GObject` C instance struct
+pub trait InstanceStruct: Sized + 'static {
+    type Type: ObjectSubclass;
 
-pub unsafe trait Instance<T: ObjectType> {
-    fn parent(&self) -> &<T::ParentType as glib::wrapper::Wrapper>::GlibType;
-
-    fn get_impl(&self) -> &<T as ObjectType>::ImplType;
-
-    unsafe fn set_impl(&mut self, imp: ptr::NonNull<T::ImplType>);
-
-    unsafe fn get_class(&self) -> *const ClassStruct<T>;
-}
-
-#[repr(C)]
-pub struct InstanceStruct<T: ObjectType> {
-    _parent: <T::ParentType as glib::wrapper::Wrapper>::GlibType,
-    _imp: ptr::NonNull<T::ImplType>,
-}
-
-unsafe impl<T: ObjectType> Instance<T> for InstanceStruct<T> {
-    fn parent(&self) -> &<T::ParentType as glib::wrapper::Wrapper>::GlibType {
-        &self._parent
-    }
-
-    fn get_impl(&self) -> &T::ImplType {
-        unsafe { self._imp.as_ref() }
-    }
-
-    unsafe fn set_impl(&mut self, imp: ptr::NonNull<T::ImplType>) {
-        self._imp = imp;
-    }
-
-    unsafe fn get_class(&self) -> *const ClassStruct<T> {
-        *(self as *const _ as *const *const ClassStruct<T>)
-    }
-}
-
-#[repr(C)]
-pub struct ClassStruct<T: ObjectType> {
-    pub parent: <T::ParentType as glib::wrapper::Wrapper>::GlibClassType,
-    pub imp_static: ptr::NonNull<Box<ImplTypeStatic<T>>>,
-    pub parent_class: ptr::NonNull<<T::ParentType as glib::wrapper::Wrapper>::GlibClassType>,
-    pub interfaces_static: *const Vec<(glib_ffi::GType, glib_ffi::gpointer)>,
-}
-
-impl<T: ObjectType> ClassStruct<T> {
-    pub fn get_parent_class(
-        &self,
-    ) -> *const <T::ParentType as glib::wrapper::Wrapper>::GlibClassType {
-        self.parent_class.as_ptr()
-    }
-
-    pub fn get_interface_static(&self, type_: glib_ffi::GType) -> glib_ffi::gpointer {
+    fn get_impl(&self) -> &Self::Type {
         unsafe {
-            if self.interfaces_static.is_null() {
+            let data = Self::Type::type_data();
+            let private_offset = data.as_ref().private_offset;
+            let ptr: *const u8 = self as *const _ as *const u8;
+            let priv_ptr = ptr.offset(private_offset);
+            let imp = priv_ptr as *const Option<Self::Type>;
+
+            (*imp).as_ref().expect("No private struct")
+        }
+    }
+
+    fn get_class(&self) -> &<Self::Type as ObjectSubclass>::Class {
+        unsafe { &**(self as *const _ as *const *const <Self::Type as ObjectSubclass>::Class) }
+    }
+}
+
+/// Trait implemented by structs that implement a `GObject` C class struct
+pub trait ClassStruct: Sized + 'static {
+    type Type: ObjectSubclass;
+}
+
+/// Type-specific data that is filled in during type creation
+pub struct TypeData {
+    pub type_: glib::Type,
+    pub parent_class: glib_ffi::gpointer,
+    pub interfaces: *const Vec<(glib_ffi::GType, glib_ffi::gpointer)>,
+    pub private_offset: isize,
+}
+
+impl TypeData {
+    /// Returns the type ID
+    pub fn get_type(&self) -> glib::Type {
+        self.type_
+    }
+
+    /// Returns a pointer to the native parent class
+    ///
+    /// This is used for chaining up to the parent class' implementation
+    /// of virtual methods
+    pub fn get_parent_class(&self) -> glib_ffi::gpointer {
+        self.parent_class
+    }
+
+    // FIXME: do we need this, do we want to do this different now?
+    pub fn get_interface(&self, type_: glib_ffi::GType) -> glib_ffi::gpointer {
+        unsafe {
+            if self.interfaces.is_null() {
                 return ptr::null_mut();
             }
 
-            for &(t, p) in &(*self.interfaces_static) {
+            for &(t, p) in &(*self.interfaces) {
                 if t == type_ {
                     return p;
                 }
@@ -163,19 +96,304 @@ impl<T: ObjectType> ClassStruct<T> {
             ptr::null_mut()
         }
     }
+
+    /// Returns the offset of the private struct in bytes relative to the
+    /// beginning of the instance struct
+    pub fn get_private_offset(&self) -> isize {
+        self.private_offset
+    }
 }
 
-pub unsafe trait ObjectClassExt<T: ObjectBase>
-where
-    T::ImplType: ObjectImpl<T>,
-{
-    fn override_vfuncs(&mut self, _: &ClassInitToken) {
+/// The central trait for subclassing a `GObject` type
+///
+/// Links together the type name, parent type and the instance and
+/// class structs for type registration and allows subclasses to
+/// hook into various steps of the type registration and initialization.
+pub unsafe trait ObjectSubclass: ObjectImpl + Sized + 'static {
+    /// `GObject` type name.
+    ///
+    /// This must be unique in the whole process.
+    const NAME: &'static str;
+
+    /// Parent Rust type to inherit from
+    type ParentType: glib::IsA<glib::Object>;
+
+    /// The C instance struct
+    ///
+    /// This must be `#[repr(C)]` and contain the `ParentType`'s instance struct
+    /// as its first member.
+    type Instance: InstanceStruct<Type = Self>;
+
+    /// The C class struct
+    ///
+    /// This must be `#[repr(C)]` and contain the `ParentType`'s class struct
+    /// as its first member.
+    type Class: ClassStruct<Type = Self>;
+
+    /// The Rust wrapper type for our new subclass
+    type RustType: glib::IsA<glib::Object> + FromGlibPtrBorrow<*mut Self::Instance>;
+
+    // TODO: Define a macro for this
+    /// Storage for the type-specific data used during registration
+    ///
+    /// This is usually generated by the TODO macro.
+    fn type_data() -> ptr::NonNull<TypeData>;
+
+    /// Returns the `glib::Type` ID of the subclass
+    ///
+    /// This will panic if called before the type was registered at
+    /// runtime with the `GObject` type system.
+    fn static_type() -> glib::Type {
         unsafe {
-            let _klass = &mut *(self as *const Self as *mut gobject_ffi::GObjectClass);
-            // Nothing to see here yet
+            let data = Self::type_data();
+            let type_ = data.as_ref().get_type();
+            assert_ne!(type_, glib::Type::Invalid);
+
+            type_
         }
     }
 
+    /// Additional type initialization
+    ///
+    /// This is called right after the type was registered and allows
+    /// subclasses to do additional type-specific initialization, e.g.
+    /// for implementing `GObject` interfaces.
+    ///
+    /// Optional
+    fn type_init(_type_: &InitializingType) {}
+
+    /// Class initialization
+    ///
+    /// This is called after `type_init` and before the first instance
+    /// of the subclass is created. Subclasses can use this to do class-
+    /// specific initialization, e.g. for installing properties or signals
+    /// on the class or calling class methods.
+    ///
+    /// Optional
+    fn class_init(_klass: &mut Self::Class) {}
+
+    /// Constructor
+    ///
+    /// This is called during object instantiation before further subclasses
+    /// are initialized, and should return a new instance of the subclass
+    /// private struct.
+    fn new(obj: &Self::RustType) -> Self;
+}
+
+unsafe extern "C" fn class_init<T: ObjectSubclass>(
+    klass: glib_ffi::gpointer,
+    _klass_data: glib_ffi::gpointer,
+) {
+    let mut data = T::type_data();
+
+    // We have to update the private struct offset once the class is actually
+    // being initialized
+    {
+        let mut private_offset = data.as_ref().private_offset as i32;
+        gobject_ffi::g_type_class_adjust_private_offset(klass, &mut private_offset);
+        (*data.as_mut()).private_offset = private_offset as isize;
+    }
+
+    // Set trampolines for the basic GObject virtual methods
+    {
+        let gobject_klass = &mut *(klass as *mut gobject_ffi::GObjectClass);
+
+        gobject_klass.finalize = Some(finalize::<T>);
+    }
+
+    // And finally peek the parent class struct (containing the parent class'
+    // implementations of virtual methods for chaining up), and call the subclass'
+    // class initialization function
+    {
+        let klass = &mut *(klass as *mut T::Class);
+        let parent_class =
+            gobject_ffi::g_type_class_peek_parent(klass as *mut _ as glib_ffi::gpointer)
+                as *mut <T::ParentType as glib::wrapper::Wrapper>::GlibClassType;
+        assert!(!parent_class.is_null());
+
+        (*data.as_mut()).parent_class = parent_class as glib_ffi::gpointer;
+
+        T::class_init(klass);
+    }
+}
+
+unsafe extern "C" fn instance_init<T: ObjectSubclass>(
+    obj: *mut gobject_ffi::GTypeInstance,
+    _klass: glib_ffi::gpointer,
+) {
+    floating_reference_guard!(obj);
+    let rs_instance: T::RustType = from_glib_borrow(obj as *mut T::Instance);
+
+    // Get offset to the storage of our private struct, create it
+    // and actually store it in that place
+    let mut data = T::type_data();
+    let private_offset = (*data.as_mut()).private_offset;
+    let ptr: *mut u8 = obj as *mut _ as *mut u8;
+    let priv_ptr = ptr.offset(private_offset);
+    let imp_storage = priv_ptr as *mut Option<T>;
+
+    let imp = T::new(&rs_instance);
+
+    ptr::write(imp_storage, Some(imp));
+}
+
+unsafe extern "C" fn finalize<T: ObjectSubclass>(obj: *mut gobject_ffi::GObject) {
+    floating_reference_guard!(obj);
+
+    // Retrieve the private struct, take it out of its storage and
+    // drop it for freeing all associated memory
+    let mut data = T::type_data();
+    let private_offset = (*data.as_mut()).private_offset;
+    let ptr: *mut u8 = obj as *mut _ as *mut u8;
+    let priv_ptr = ptr.offset(private_offset);
+    let imp_storage = priv_ptr as *mut Option<T>;
+
+    let imp = (*imp_storage).take().expect("No private struct");
+    drop(imp);
+
+    // Chain up to the parent class' finalize implementation, if any
+    let parent_class = &*(data.as_ref().get_parent_class() as *const gobject_ffi::GObjectClass);
+    if let Some(ref func) = parent_class.finalize {
+        func(obj);
+    }
+}
+
+/// Register a `glib::Type` ID for `T`
+///
+/// This must be called only once and will panic on a second call.
+pub fn register_type<T: ObjectSubclass>() -> glib::Type {
+    unsafe {
+        use std::ffi::CString;
+
+        let type_info = gobject_ffi::GTypeInfo {
+            class_size: mem::size_of::<T::Class>() as u16,
+            base_init: None,
+            base_finalize: None,
+            class_init: Some(class_init::<T>),
+            class_finalize: None,
+            class_data: ptr::null_mut(),
+            instance_size: mem::size_of::<T::Instance>() as u16,
+            n_preallocs: 0,
+            instance_init: Some(instance_init::<T>),
+            value_table: ptr::null(),
+        };
+
+        let type_name = CString::new(T::NAME).unwrap();
+        assert_eq!(
+            gobject_ffi::g_type_from_name(type_name.as_ptr()),
+            gobject_ffi::G_TYPE_INVALID
+        );
+
+        let type_ = from_glib(gobject_ffi::g_type_register_static(
+            <T::ParentType as glib::StaticType>::static_type().to_glib(),
+            type_name.as_ptr(),
+            &type_info,
+            0,
+        ));
+
+        let mut data = T::type_data();
+        (*data.as_mut()).type_ = type_;
+        let private_offset =
+            gobject_ffi::g_type_add_instance_private(type_.to_glib(), mem::size_of::<Option<T>>());
+        (*data.as_mut()).private_offset = private_offset as isize;
+
+        T::type_init(&InitializingType(type_));
+
+        type_
+    }
+}
+
+/// Trait for declaring the subclass relationship between classes
+///
+/// This is the class version of `glib::IsA`.
+pub unsafe trait IsAClass<T> {}
+
+unsafe impl<T> IsAClass<T> for T {}
+
+// TODO: Everything below should be in glib-rs/object.rs
+
+/// Trait for implementors of `glib::Object` subclasses
+///
+/// This allows overriding the virtual methods of `glib::Object`
+pub trait ObjectImpl: 'static {
+    // TODO: Define a macro for this
+    /// Storage for the type-specific data used during registration
+    ///
+    /// This is usually generated by the TODO macro.
+    fn get_type_data(&self) -> ptr::NonNull<TypeData>;
+
+    /// Property setter
+    ///
+    /// This is called whenever the property of this specific subclass with the
+    /// given index is set. The new value is passed as `glib::Value`.
+    fn set_property(&self, _obj: &glib::Object, _id: u32, _value: &glib::Value) {
+        unimplemented!()
+    }
+
+    /// Property getter
+    ///
+    /// This is called whenever the property value of the specific subclass with the
+    /// given index should be returned.
+    fn get_property(&self, _obj: &glib::Object, _id: u32) -> Result<glib::Value, ()> {
+        unimplemented!()
+    }
+
+    /// Constructed
+    ///
+    /// This is called once construction of the instance is finished.
+    ///
+    /// Should chain up to the parent class' implementation.
+    fn constructed(&self, obj: &glib::Object) {
+        self.parent_constructed(obj);
+    }
+
+    /// Chain up to the parent class' implementation of `glib::Object::constructed()`
+    ///
+    /// Do not override this, it has no effect.
+    fn parent_constructed(&self, obj: &glib::Object) {
+        unsafe {
+            let data = self.get_type_data();
+            let parent_class = data.as_ref().get_parent_class() as *mut gobject_ffi::GObjectClass;
+
+            if let Some(ref func) = (*parent_class).constructed {
+                func(obj.to_glib_none().0);
+            }
+        }
+    }
+}
+
+/// Class struct for `glib::Object`
+#[repr(C)]
+pub struct ObjectClass(gobject_ffi::GObjectClass);
+
+/// Extension trait for `glib::Object`'s class struct
+///
+/// This contains various class methods and allows subclasses
+/// to override the virtual methods
+pub trait ObjectClassExt: Sized + 'static {
+    /// Override the virtual methods
+    fn override_vfuncs(&mut self)
+    where
+        Self: ClassStruct,
+    {
+        unsafe {
+            let klass = &mut *(self as *const Self as *mut gobject_ffi::GObjectClass);
+            klass.set_property = Some(set_property::<<Self as ClassStruct>::Type>);
+            klass.get_property = Some(get_property::<<Self as ClassStruct>::Type>);
+            klass.constructed = Some(constructed::<<Self as ClassStruct>::Type>);
+        }
+    }
+
+    /// Install properties on the subclass
+    ///
+    /// This must be called after `override_vfuncs()` to work correctly.
+    /// The index in the properties array is going to be the index passed to the
+    /// property setters and getters.
+    // TODO: Use a different Property struct
+    //   struct Property {
+    //     name: &'static str,
+    //     pspec: fn () -> glib::ParamSpec,
+    //   }
     fn install_properties(&mut self, properties: &[Property]) {
         if properties.is_empty() {
             return;
@@ -198,6 +416,10 @@ where
         }
     }
 
+    /// Add a new signal to the subclass
+    ///
+    /// This can be emitted later by `glib::Object::emit` and external code
+    /// can connect to the signal to get notified about emissions.
     fn add_signal(&mut self, name: &str, arg_types: &[glib::Type], ret_type: glib::Type) {
         let arg_types = arg_types.iter().map(|t| t.to_glib()).collect::<Vec<_>>();
         unsafe {
@@ -216,6 +438,15 @@ where
         }
     }
 
+    /// Add a new signal with accumulator to the subclass
+    ///
+    /// This can be emitted later by `glib::Object::emit` and external code
+    /// can connect to the signal to get notified about emissions.
+    ///
+    /// The accumulator function is used for accumulating the return values of
+    /// multiple signal handlers. The new value is passed as second argument and
+    /// should be combined with the old value in the first argument. If no further
+    /// signal handlers should be called, `false` should be returned.
     fn add_signal_with_accumulator<F>(
         &mut self,
         name: &str,
@@ -240,11 +471,16 @@ where
             let accumulator: &&(Fn(&mut glib::Value, &glib::Value) -> bool
                                     + Send
                                     + Sync
-                                    + 'static) = mem::transmute(data);
+                                    + 'static) =
+                &*(data as *const &(Fn(&mut glib::Value, &glib::Value) -> bool
+                      + Send
+                      + Sync
+                      + 'static));
             accumulator(
                 &mut *(return_accu as *mut glib::Value),
                 &*(handler_return as *const glib::Value),
-            ).to_glib()
+            )
+            .to_glib()
         }
 
         unsafe {
@@ -263,6 +499,12 @@ where
         }
     }
 
+    /// Add a new action signal with accumulator to the subclass
+    ///
+    /// Different to normal signals, action signals are supposed to be emitted
+    /// by external code and will cause the provided handler to be called.
+    ///
+    /// It can be thought of as a dynamic function call.
     fn add_action_signal<F>(
         &mut self,
         name: &str,
@@ -291,127 +533,24 @@ where
     }
 }
 
-unsafe extern "C" fn class_init<T: ObjectType>(
-    klass: glib_ffi::gpointer,
-    _klass_data: glib_ffi::gpointer,
-) {
-    {
-        let gobject_klass = &mut *(klass as *mut gobject_ffi::GObjectClass);
+impl<T: IsAClass<ObjectClass> + 'static> ObjectClassExt for T {}
 
-        gobject_klass.finalize = Some(finalize::<T>);
-    }
-
-    {
-        let klass = &mut *(klass as *mut ClassStruct<T>);
-        let parent_class =
-            gobject_ffi::g_type_class_peek_parent(klass as *mut _ as glib_ffi::gpointer)
-                as *mut <T::ParentType as glib::wrapper::Wrapper>::GlibClassType;
-        assert!(!parent_class.is_null());
-        klass.parent_class = ptr::NonNull::new_unchecked(parent_class);
-        T::class_init(&ClassInitToken(()), klass);
-    }
-}
-
-unsafe extern "C" fn finalize<T: ObjectType>(obj: *mut gobject_ffi::GObject) {
-    let instance = &mut *(obj as *mut T::InstanceStructType);
-
-    drop(Box::from_raw(
-        instance.get_impl() as *const _ as *mut T::ImplType
-    ));
-    instance.set_impl(ptr::NonNull::dangling());
-
-    let klass = *(obj as *const glib_ffi::gpointer);
-    let parent_klass = gobject_ffi::g_type_class_peek_parent(klass);
-    let parent_klass =
-        &*(gobject_ffi::g_type_class_peek_parent(parent_klass) as *const gobject_ffi::GObjectClass);
-    parent_klass.finalize.map(|f| f(obj));
-}
-
-static mut TYPES: *mut Mutex<BTreeMap<TypeId, glib::Type>> = 0 as *mut _;
-
-pub unsafe fn get_type<T: ObjectType>() -> glib_ffi::GType {
-    use std::sync::{Once, ONCE_INIT};
-
-    static ONCE: Once = ONCE_INIT;
-
-    ONCE.call_once(|| {
-        TYPES = Box::into_raw(Box::new(Mutex::new(BTreeMap::new())));
-    });
-
-    let mut types = (*TYPES).lock().unwrap();
-    types
-        .entry(TypeId::of::<T>())
-        .or_insert_with(|| {
-            let type_info = gobject_ffi::GTypeInfo {
-                class_size: mem::size_of::<ClassStruct<T>>() as u16,
-                base_init: None,
-                base_finalize: None,
-                class_init: Some(class_init::<T>),
-                class_finalize: None,
-                class_data: ptr::null_mut(),
-                instance_size: mem::size_of::<T::InstanceStructType>() as u16,
-                n_preallocs: 0,
-                instance_init: None,
-                value_table: ptr::null(),
-            };
-
-            let type_name = {
-                let mut idx = 0;
-
-                loop {
-                    let type_name = CString::new(format!("{}-{}", T::NAME, idx)).unwrap();
-                    if gobject_ffi::g_type_from_name(type_name.as_ptr())
-                        == gobject_ffi::G_TYPE_INVALID
-                    {
-                        break type_name;
-                    }
-                    idx += 1;
-                }
-            };
-
-            from_glib(gobject_ffi::g_type_register_static(
-                <T::ParentType as glib::StaticType>::static_type().to_glib(),
-                type_name.as_ptr(),
-                &type_info,
-                gobject_ffi::G_TYPE_FLAG_ABSTRACT,
-            ))
-        })
-        .to_glib()
-}
-
-unsafe extern "C" fn sub_class_init<T: ObjectType>(
-    klass: glib_ffi::gpointer,
-    klass_data: glib_ffi::gpointer,
-) {
-    {
-        let gobject_klass = &mut *(klass as *mut gobject_ffi::GObjectClass);
-
-        gobject_klass.set_property = Some(sub_set_property::<T>);
-        gobject_klass.get_property = Some(sub_get_property::<T>);
-    }
-    {
-        assert!(!klass_data.is_null());
-        let klass = &mut *(klass as *mut ClassStruct<T>);
-        let imp_static = klass_data as *mut Box<ImplTypeStatic<T>>;
-        klass.imp_static = ptr::NonNull::new_unchecked(imp_static);
-        klass.interfaces_static = Box::into_raw(Box::new(Vec::new()));
-
-        (*imp_static).class_init(klass);
-    }
-}
-
-unsafe extern "C" fn sub_get_property<T: ObjectType>(
+unsafe extern "C" fn get_property<T: ObjectSubclass>(
     obj: *mut gobject_ffi::GObject,
     id: u32,
     value: *mut gobject_ffi::GValue,
     _pspec: *mut gobject_ffi::GParamSpec,
 ) {
     floating_reference_guard!(obj);
-    let instance = &*(obj as *mut T::InstanceStructType);
+    let instance = &*(obj as *mut T::Instance);
     let imp = instance.get_impl();
 
     match imp.get_property(&from_glib_borrow(obj), id - 1) {
         Ok(v) => {
+            // Here we overwrite the value directly with ours
+            // and forget ours because otherwise we would do
+            // an additional copy of the value, which for
+            // non-refcounted types involves a deep copy
             gobject_ffi::g_value_unset(value);
             ptr::write(value, ptr::read(v.to_glib_none().0));
             mem::forget(v);
@@ -420,14 +559,14 @@ unsafe extern "C" fn sub_get_property<T: ObjectType>(
     }
 }
 
-unsafe extern "C" fn sub_set_property<T: ObjectType>(
+unsafe extern "C" fn set_property<T: ObjectSubclass>(
     obj: *mut gobject_ffi::GObject,
     id: u32,
     value: *mut gobject_ffi::GValue,
     _pspec: *mut gobject_ffi::GParamSpec,
 ) {
     floating_reference_guard!(obj);
-    let instance = &*(obj as *mut T::InstanceStructType);
+    let instance = &*(obj as *mut T::Instance);
     let imp = instance.get_impl();
     imp.set_property(
         &from_glib_borrow(obj),
@@ -436,81 +575,10 @@ unsafe extern "C" fn sub_set_property<T: ObjectType>(
     );
 }
 
-unsafe extern "C" fn sub_init<T: ObjectType>(
-    obj: *mut gobject_ffi::GTypeInstance,
-    _klass: glib_ffi::gpointer,
-) {
+unsafe extern "C" fn constructed<T: ObjectSubclass>(obj: *mut gobject_ffi::GObject) {
     floating_reference_guard!(obj);
-    let instance = &mut *(obj as *mut T::InstanceStructType);
-    let klass = &**(obj as *const *const ClassStruct<T>);
-    let rs_instance: T = from_glib_borrow(obj as *mut T::InstanceStructType);
+    let instance = &*(obj as *mut T::Instance);
+    let imp = instance.get_impl();
 
-    let imp = klass.imp_static.as_ref().new(&rs_instance);
-    instance.set_impl(ptr::NonNull::new_unchecked(Box::into_raw(Box::new(imp))));
-}
-
-pub fn register_type<T: ObjectType, I: ImplTypeStatic<T>>(imp: I) -> glib::Type {
-    unsafe {
-        let parent_type = get_type::<T>();
-        let type_name = format!("{}-{}", T::NAME, imp.get_name());
-
-        let imp: Box<ImplTypeStatic<T>> = Box::new(imp);
-        let imp_ptr = Box::into_raw(Box::new(imp));
-
-        let type_info = gobject_ffi::GTypeInfo {
-            class_size: mem::size_of::<ClassStruct<T>>() as u16,
-            base_init: None,
-            base_finalize: None,
-            class_init: Some(sub_class_init::<T>),
-            class_finalize: None,
-            class_data: imp_ptr as glib_ffi::gpointer,
-            instance_size: mem::size_of::<T::InstanceStructType>() as u16,
-            n_preallocs: 0,
-            instance_init: Some(sub_init::<T>),
-            value_table: ptr::null(),
-        };
-
-        let type_ = from_glib(gobject_ffi::g_type_register_static(
-            parent_type,
-            type_name.to_glib_none().0,
-            &type_info,
-            0,
-        ));
-
-        (*imp_ptr).type_init(&TypeInitToken(()), type_);
-
-        type_
-    }
-}
-
-any_impl!(ObjectBase, ObjectImpl);
-
-pub unsafe trait ObjectBase: glib::IsA<glib::Object> + ObjectType {}
-
-glib_wrapper! {
-    pub struct Object(Object<InstanceStruct<Object>>);
-
-    match fn {
-        get_type => || get_type::<Object>(),
-    }
-}
-
-unsafe impl<T: glib::IsA<glib::Object> + ObjectType> ObjectBase for T {}
-
-pub type ObjectClass = ClassStruct<Object>;
-
-// FIXME: Boilerplate
-unsafe impl ObjectClassExt<Object> for ObjectClass {}
-
-impl ObjectType for Object {
-    const NAME: &'static str = "RsObject";
-    type ParentType = glib::Object;
-    type ImplType = Box<ObjectImpl<Self>>;
-    type InstanceStructType = InstanceStruct<Self>;
-
-    fn class_init(token: &ClassInitToken, klass: &mut ObjectClass) {
-        klass.override_vfuncs(token);
-    }
-
-    object_type_fns!();
+    imp.constructed(&from_glib_borrow(obj));
 }
