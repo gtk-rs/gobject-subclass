@@ -92,7 +92,6 @@ mod imp {
         type ParentType = glib::Object;
         type Instance = SimpleObjectInstance;
         type Class = SimpleObjectClass;
-        type RustType = super::SimpleObject;
 
         // TODO: macro
         fn type_data() -> ptr::NonNull<TypeData> {
@@ -114,10 +113,13 @@ mod imp {
             klass.add_signal("name-changed", &[String::static_type()], glib::Type::Unit);
         }
 
-        fn new(obj: &super::SimpleObject) -> Self {
+        fn new(obj: &glib::Object) -> Self {
             Self {
                 name: RefCell::new(None),
-                parent: obj.downgrade(),
+                parent: obj
+                    .downcast_ref::<super::SimpleObject>()
+                    .unwrap()
+                    .downgrade(),
             }
         }
     }

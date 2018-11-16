@@ -116,7 +116,10 @@ pub unsafe trait ObjectSubclass: ObjectImpl + Sized + 'static {
     const NAME: &'static str;
 
     /// Parent Rust type to inherit from
-    type ParentType: glib::IsA<glib::Object>;
+    type ParentType: glib::IsA<glib::Object>
+        + glib::translate::FromGlibPtrBorrow<
+            *mut <Self::ParentType as glib::wrapper::Wrapper>::GlibType,
+        >;
 
     /// The C instance struct
     ///
@@ -129,9 +132,6 @@ pub unsafe trait ObjectSubclass: ObjectImpl + Sized + 'static {
     /// This must be `#[repr(C)]` and contain the `ParentType`'s class struct
     /// as its first member.
     type Class: ClassStruct<Type = Self>;
-
-    /// The Rust wrapper type for our new subclass
-    type RustType: glib::IsA<glib::Object> + FromGlibPtrBorrow<*mut Self::Instance>;
 
     // TODO: Define a macro for this
     /// Storage for the type-specific data used during registration
@@ -177,7 +177,7 @@ pub unsafe trait ObjectSubclass: ObjectImpl + Sized + 'static {
     /// This is called during object instantiation before further subclasses
     /// are initialized, and should return a new instance of the subclass
     /// private struct.
-    fn new(obj: &Self::RustType) -> Self;
+    fn new(obj: &Self::ParentType) -> Self;
 }
 
 unsafe extern "C" fn class_init<T: ObjectSubclass>(
@@ -222,7 +222,8 @@ unsafe extern "C" fn instance_init<T: ObjectSubclass>(
     _klass: glib_ffi::gpointer,
 ) {
     floating_reference_guard!(obj);
-    let rs_instance: T::RustType = from_glib_borrow(obj as *mut T::Instance);
+    let rs_instance: T::ParentType =
+        from_glib_borrow(obj as *mut <T::ParentType as glib::wrapper::Wrapper>::GlibType);
 
     // Get offset to the storage of our private struct, create it
     // and actually store it in that place
