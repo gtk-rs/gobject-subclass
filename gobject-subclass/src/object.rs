@@ -53,10 +53,30 @@ pub trait InstanceStruct: Sized + 'static {
     }
 }
 
+#[repr(C)]
+pub struct SimpleInstanceStruct<T: ObjectSubclass> {
+    parent: <T::ParentType as glib::wrapper::Wrapper>::GlibType,
+}
+
+impl<T: ObjectSubclass> InstanceStruct for SimpleInstanceStruct<T> {
+    type Type = T;
+}
+
 /// Trait implemented by structs that implement a `GObject` C class struct
 pub trait ClassStruct: Sized + 'static {
     type Type: ObjectSubclass;
 }
+
+#[repr(C)]
+pub struct SimpleClassStruct<T: ObjectSubclass> {
+    parent_class: <T::ParentType as glib::wrapper::Wrapper>::GlibClassType,
+}
+
+impl<T: ObjectSubclass> ClassStruct for SimpleClassStruct<T> {
+    type Type = T;
+}
+
+unsafe impl<T: ObjectSubclass, U: IsClassFor<T::ParentType>> IsAClass<U> for SimpleClassStruct<T> {}
 
 /// Type-specific data that is filled in during type creation
 pub struct TypeData {
@@ -80,7 +100,9 @@ impl TypeData {
         self.parent_class
     }
 
-    // FIXME: do we need this, do we want to do this different now?
+    /// Returns a pointer to the interface implementation
+    ///
+    /// This is used for calling the interface method implementations
     pub fn get_interface(&self, type_: glib_ffi::GType) -> glib_ffi::gpointer {
         unsafe {
             if self.interfaces.is_null() {
@@ -307,12 +329,24 @@ pub fn register_type<T: ObjectSubclass>() -> glib::Type {
 /// Trait for declaring the subclass relationship between classes
 ///
 /// This is the class version of `glib::IsA`.
+// TODO: This should be in glib-rs
 pub unsafe trait IsAClass<T> {}
 
-unsafe impl<T> IsAClass<T> for T {}
+/// Trait for mapping a class to its corresponding instance type
+// TODO: This should be in glib-rs
+pub unsafe trait IsClassFor<T> {}
+
+/// Trait for mapping an instance type to its corresponding class
+///
+/// This is generally not implemented directly but `IsClassFor` is
+/// implemented instead and the blanket implementation is used for
+/// `IsInstanceFor`.
+// TODO: This information should actually be in glib-rs' Wrapper trait
+pub unsafe trait IsInstanceFor<T> {}
+
+unsafe impl<T: IsClassFor<U>, U> IsInstanceFor<T> for U {}
 
 // TODO: Everything below should be in glib-rs/object.rs
-
 /// Trait for implementors of `glib::Object` subclasses
 ///
 /// This allows overriding the virtual methods of `glib::Object`
@@ -366,6 +400,8 @@ pub trait ObjectImpl: 'static {
 /// Class struct for `glib::Object`
 #[repr(C)]
 pub struct ObjectClass(gobject_ffi::GObjectClass);
+
+unsafe impl IsClassFor<glib::Object> for ObjectClass {}
 
 /// Extension trait for `glib::Object`'s class struct
 ///
