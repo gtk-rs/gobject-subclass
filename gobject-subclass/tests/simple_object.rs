@@ -18,9 +18,12 @@ extern crate glib;
 use glib::prelude::*;
 use glib::translate::*;
 
-extern crate gobject_subclass;
-use gobject_subclass::object::*;
-use gobject_subclass::properties::*;
+extern crate gobject_subclass as subclass;
+use subclass::object;
+use subclass::prelude::*;
+
+// FIXME
+use subclass::properties::*;
 
 mod imp {
     use super::*;
@@ -60,7 +63,7 @@ mod imp {
     }
 
     // TODO: macro for these, like glib_wrapper!() or in it even
-    unsafe impl IsAClass<ObjectClass> for SimpleObjectClass {}
+    unsafe impl IsAClass<object::ObjectClass> for SimpleObjectClass {}
 
     impl SimpleObject {
         // TODO This should be a macro
@@ -69,7 +72,7 @@ mod imp {
             static ONCE: Once = Once::new();
 
             ONCE.call_once(|| {
-                register_type::<SimpleObject>();
+                subclass::register_type::<SimpleObject>();
             });
 
             Self::static_type()
@@ -94,8 +97,8 @@ mod imp {
         type Class = SimpleObjectClass;
 
         // TODO: macro
-        fn type_data() -> ptr::NonNull<TypeData> {
-            static mut DATA: TypeData = TypeData {
+        fn type_data() -> ptr::NonNull<subclass::TypeData> {
+            static mut DATA: subclass::TypeData = subclass::TypeData {
                 type_: glib::Type::Invalid,
                 parent_class: ptr::null_mut(),
                 interfaces: ptr::null_mut(),
@@ -106,7 +109,7 @@ mod imp {
         }
 
         fn class_init(klass: &mut SimpleObjectClass) {
-            ObjectClassExt::override_vfuncs(klass);
+            object::ObjectClassExt::override_vfuncs(klass);
 
             klass.install_properties(&PROPERTIES);
 
@@ -126,7 +129,7 @@ mod imp {
 
     impl ObjectImpl for SimpleObject {
         // TODO macro
-        fn get_type_data(&self) -> ptr::NonNull<TypeData> {
+        fn get_type_data(&self) -> ptr::NonNull<subclass::TypeData> {
             Self::type_data()
         }
 

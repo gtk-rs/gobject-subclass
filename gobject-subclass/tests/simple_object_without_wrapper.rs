@@ -6,27 +6,18 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::mem;
-use std::ops;
 use std::ptr;
 
 extern crate glib_sys as glib_ffi;
 extern crate gobject_sys as gobject_ffi;
 
-#[macro_use]
 extern crate glib;
-use glib::prelude::*;
-use glib::translate::*;
 
-extern crate gobject_subclass;
-use gobject_subclass::object::*;
-use gobject_subclass::properties::*;
+extern crate gobject_subclass as subclass;
+use subclass::object;
+use subclass::prelude::*;
 
-use std::cell::RefCell;
-
-pub struct SimpleObject {
-    dummy: u32,
-}
+pub struct SimpleObject {}
 
 impl SimpleObject {
     // TODO This should be a macro
@@ -35,7 +26,7 @@ impl SimpleObject {
         static ONCE: Once = Once::new();
 
         ONCE.call_once(|| {
-            register_type::<SimpleObject>();
+            subclass::register_type::<SimpleObject>();
         });
 
         Self::static_type()
@@ -45,12 +36,12 @@ impl SimpleObject {
 unsafe impl ObjectSubclass for SimpleObject {
     const NAME: &'static str = "SimpleObject";
     type ParentType = glib::Object;
-    type Instance = SimpleInstanceStruct<Self>;
-    type Class = SimpleClassStruct<Self>;
+    type Instance = subclass::simple::InstanceStruct<Self>;
+    type Class = subclass::simple::ClassStruct<Self>;
 
     // TODO: macro
-    fn type_data() -> ptr::NonNull<TypeData> {
-        static mut DATA: TypeData = TypeData {
+    fn type_data() -> ptr::NonNull<subclass::TypeData> {
+        static mut DATA: subclass::TypeData = subclass::TypeData {
             type_: glib::Type::Invalid,
             parent_class: ptr::null_mut(),
             interfaces: ptr::null_mut(),
@@ -60,18 +51,18 @@ unsafe impl ObjectSubclass for SimpleObject {
         unsafe { ptr::NonNull::new_unchecked(&mut DATA) }
     }
 
-    fn class_init(klass: &mut SimpleClassStruct<Self>) {
+    fn class_init(klass: &mut subclass::simple::ClassStruct<Self>) {
         ObjectClassExt::override_vfuncs(klass);
     }
 
-    fn new(obj: &glib::Object) -> Self {
-        Self { dummy: 0 }
+    fn new(_obj: &glib::Object) -> Self {
+        Self {}
     }
 }
 
-impl ObjectImpl for SimpleObject {
+impl object::ObjectImpl for SimpleObject {
     // TODO macro
-    fn get_type_data(&self) -> ptr::NonNull<TypeData> {
+    fn get_type_data(&self) -> ptr::NonNull<subclass::TypeData> {
         Self::type_data()
     }
 
@@ -83,5 +74,5 @@ impl ObjectImpl for SimpleObject {
 #[test]
 fn test_create() {
     let type_ = SimpleObject::get_type();
-    let obj = glib::Object::new(type_, &[]).unwrap();
+    let _obj = glib::Object::new(type_, &[]).unwrap();
 }

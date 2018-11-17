@@ -16,6 +16,18 @@ pub extern crate glib;
 #[macro_use]
 pub mod guard;
 
-pub mod properties;
-#[macro_use]
+pub mod simple;
+pub mod types;
+
 pub mod object;
+pub mod properties;
+
+pub mod prelude {
+    pub use super::object::{ObjectClassExt, ObjectImpl};
+    pub use super::types::{
+        ClassStruct, InstanceStruct, IsAClass, IsClassFor, IsInstanceFor, ObjectSubclass,
+    };
+}
+
+pub use types::register_type;
+pub use types::TypeData;
