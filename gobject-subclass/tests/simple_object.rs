@@ -18,6 +18,7 @@ extern crate glib;
 use glib::prelude::*;
 use glib::translate::*;
 
+#[macro_use]
 extern crate gobject_subclass as subclass;
 use subclass::object;
 use subclass::prelude::*;
@@ -42,23 +43,21 @@ mod imp {
         PropertyMutability::ReadWrite,
     )];
 
-    // TODO: want default ones for this
     #[repr(C)]
     pub struct SimpleObjectInstance {
         parent: gobject_ffi::GObject,
     }
 
-    impl InstanceStruct for SimpleObjectInstance {
+    unsafe impl InstanceStruct for SimpleObjectInstance {
         type Type = SimpleObject;
     }
 
-    // TODO: want default ones for this
     #[repr(C)]
     pub struct SimpleObjectClass {
         parent_class: gobject_ffi::GObjectClass,
     }
 
-    impl ClassStruct for SimpleObjectClass {
+    unsafe impl ClassStruct for SimpleObjectClass {
         type Type = SimpleObject;
     }
 
@@ -66,17 +65,7 @@ mod imp {
     unsafe impl IsAClass<object::ObjectClass> for SimpleObjectClass {}
 
     impl SimpleObject {
-        // TODO This should be a macro
-        pub fn get_type() -> glib::Type {
-            use std::sync::Once;
-            static ONCE: Once = Once::new();
-
-            ONCE.call_once(|| {
-                subclass::register_type::<SimpleObject>();
-            });
-
-            Self::static_type()
-        }
+        object_get_type!();
 
         pub fn set_name(&self, name: Option<&str>) {
             self.name.replace(name.map(String::from));
@@ -90,23 +79,13 @@ mod imp {
         }
     }
 
-    unsafe impl ObjectSubclass for SimpleObject {
+    impl ObjectSubclass for SimpleObject {
         const NAME: &'static str = "SimpleObject";
         type ParentType = glib::Object;
         type Instance = SimpleObjectInstance;
         type Class = SimpleObjectClass;
 
-        // TODO: macro
-        fn type_data() -> ptr::NonNull<subclass::TypeData> {
-            static mut DATA: subclass::TypeData = subclass::TypeData {
-                type_: glib::Type::Invalid,
-                parent_class: ptr::null_mut(),
-                interfaces: ptr::null_mut(),
-                private_offset: 0,
-            };
-
-            unsafe { ptr::NonNull::new_unchecked(&mut DATA) }
-        }
+        object_subclass!();
 
         fn class_init(klass: &mut SimpleObjectClass) {
             object::ObjectClassExt::override_vfuncs(klass);
@@ -128,10 +107,7 @@ mod imp {
     }
 
     impl ObjectImpl for SimpleObject {
-        // TODO macro
-        fn get_type_data(&self) -> ptr::NonNull<subclass::TypeData> {
-            Self::type_data()
-        }
+        object_impl!();
 
         fn set_property(&self, obj: &glib::Object, id: u32, value: &glib::Value) {
             let prop = &PROPERTIES[id as usize];

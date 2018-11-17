@@ -5,6 +5,7 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
+//! Module that contains the basic infrastructure for subclassing `GObject`
 use glib_ffi;
 use gobject_ffi;
 
@@ -33,9 +34,23 @@ impl ops::Deref for InitializingType {
 }
 
 /// Trait implemented by structs that implement a `GObject` C instance struct
-pub trait InstanceStruct: Sized + 'static {
+///
+/// The struct must be `#[repr(C)]` and have the parent type's instance struct
+/// as the first field.
+///
+/// See [`simple::InstanceStruct`] for a basic implementation of this that can
+/// be used most of the time and should only not be used if additional fields are
+/// required in the instance struct.
+///
+/// [`simple::InstanceStruct`]: ../simple/struct.InstanceStruct.html
+pub unsafe trait InstanceStruct: Sized + 'static {
+    /// Corresponding object subclass type for this instance struct
     type Type: ObjectSubclass;
 
+    /// Returns the implementation for from this instance struct, that
+    /// is the implementor of [`ObjectImpl`] or subtraits.
+    ///
+    /// [`ObjectImpl`]: ../object/trait.ObjectImpl.html
     fn get_impl(&self) -> &Self::Type {
         unsafe {
             let data = Self::Type::type_data();
@@ -48,13 +63,24 @@ pub trait InstanceStruct: Sized + 'static {
         }
     }
 
+    /// Returns the class struct for this specific instance
     fn get_class(&self) -> &<Self::Type as ObjectSubclass>::Class {
         unsafe { &**(self as *const _ as *const *const <Self::Type as ObjectSubclass>::Class) }
     }
 }
 
 /// Trait implemented by structs that implement a `GObject` C class struct
-pub trait ClassStruct: Sized + 'static {
+///
+/// The struct must be `#[repr(C)]` and have the parent type's class struct
+/// as the first field.
+///
+/// See [`simple::ClassStruct`] for a basic implementation of this that can
+/// be used most of the time and should only not be used if additional fields are
+/// required in the class struct, e.g. for declaring new virtual methods.
+///
+/// [`simple::ClassStruct`]: ../simple/struct.ClassStruct.html
+pub unsafe trait ClassStruct: Sized + 'static {
+    /// Corresponding object subclass type for this class struct
     type Type: ObjectSubclass;
 }
 
@@ -64,27 +90,24 @@ pub trait ClassStruct: Sized + 'static {
 // TODO: This should be in glib-rs
 pub unsafe trait IsAClass<T> {}
 
-/// Trait for mapping a class to its corresponding instance type
+/// Trait for mapping a class struct type to its corresponding instance type
 // TODO: This should be in glib-rs
 pub unsafe trait IsClassFor<T> {}
 
-/// Trait for mapping an instance type to its corresponding class
-///
-/// This is generally not implemented directly but `IsClassFor` is
-/// implemented instead and the blanket implementation is used for
-/// `IsInstanceFor`.
-// TODO: This information should actually be in glib-rs' Wrapper trait
-pub unsafe trait IsInstanceFor<T> {}
-
-unsafe impl<T: IsClassFor<U>, U> IsInstanceFor<T> for U {}
-
 /// Type-specific data that is filled in during type creation
 pub struct TypeData {
+    #[doc(hidden)]
     pub type_: glib::Type,
+    #[doc(hidden)]
     pub parent_class: glib_ffi::gpointer,
+    #[doc(hidden)]
     pub interfaces: *const Vec<(glib_ffi::GType, glib_ffi::gpointer)>,
+    #[doc(hidden)]
     pub private_offset: isize,
 }
+
+unsafe impl Send for TypeData {}
+unsafe impl Sync for TypeData {}
 
 impl TypeData {
     /// Returns the type ID
@@ -126,12 +149,36 @@ impl TypeData {
     }
 }
 
+#[macro_export]
+/// Macro for boilerplate of [`ObjectSubclass`] implementations
+///
+/// [`ObjectSubclass`]: types/trait.ObjectSubclass.html
+macro_rules! object_subclass {
+    () => {
+        fn type_data() -> ::std::ptr::NonNull<$crate::TypeData> {
+            static mut DATA: $crate::TypeData = $crate::TypeData {
+                type_: $crate::glib::Type::Invalid,
+                parent_class: ::std::ptr::null_mut(),
+                interfaces: ::std::ptr::null_mut(),
+                private_offset: 0,
+            };
+
+            unsafe { ::std::ptr::NonNull::new_unchecked(&mut DATA) }
+        }
+    };
+}
+
 /// The central trait for subclassing a `GObject` type
 ///
 /// Links together the type name, parent type and the instance and
 /// class structs for type registration and allows subclasses to
 /// hook into various steps of the type registration and initialization.
-pub unsafe trait ObjectSubclass: ObjectImpl + Sized + 'static {
+///
+/// See [`register_type`] for registering an implementation of this trait
+/// with the type system.
+///
+/// [`register_type`]: fn.register_type.html
+pub trait ObjectSubclass: ObjectImpl + Sized + 'static {
     /// `GObject` type name.
     ///
     /// This must be unique in the whole process.
@@ -145,24 +192,29 @@ pub unsafe trait ObjectSubclass: ObjectImpl + Sized + 'static {
 
     /// The C instance struct
     ///
-    /// This must be `#[repr(C)]` and contain the `ParentType`'s instance struct
-    /// as its first member.
-    // TODO: Should default to utils::SimpleInstanceStruct<Self> once associated
+    /// See [`simple::InstanceStruct`] for an basic instance struct that should be
+    /// used in most cases
+    ///
+    /// [`simple::InstanceStruct`]: ../simple/struct.InstanceStruct.html
+    // TODO: Should default to simple::InstanceStruct<Self> once associated
     // type defaults are stabilized https://github.com/rust-lang/rust/issues/29661
     type Instance: InstanceStruct<Type = Self>;
 
     /// The C class struct
     ///
-    /// This must be `#[repr(C)]` and contain the `ParentType`'s class struct
-    /// as its first member.
-    // TODO: Should default to utils::SimpleClassStruct<Self> once associated
+    /// See [`simple::ClassStruct`] for an basic instance struct that should be
+    /// used in most cases
+    ///
+    /// [`simple::ClassStruct`]: ../simple/struct.ClassStruct.html
+    // TODO: Should default to simple::ClassStruct<Self> once associated
     // type defaults are stabilized https://github.com/rust-lang/rust/issues/29661
     type Class: ClassStruct<Type = Self>;
 
-    // TODO: Define a macro for this
     /// Storage for the type-specific data used during registration
     ///
-    /// This is usually generated by the TODO macro.
+    /// This is usually generated by the [`object_subclass!`] macro.
+    ///
+    /// [`object_subclass!`]: ../macro.object_subclass.html
     fn type_data() -> ptr::NonNull<TypeData>;
 
     /// Returns the `glib::Type` ID of the subclass
@@ -285,9 +337,36 @@ unsafe extern "C" fn finalize<T: ObjectSubclass>(obj: *mut gobject_ffi::GObject)
     }
 }
 
+#[macro_export]
+/// Macro for defining a `get_type` function
+///
+/// This returns a `glib::Type` and registers `Self` via [`register_type`]
+/// the first time it is called.
+///
+/// [`register_type`]: types/fn.register_type.html
+macro_rules! object_get_type {
+    () => {
+        pub fn get_type() -> $crate::glib::Type {
+            use std::sync::Once;
+            static ONCE: Once = Once::new();
+
+            ONCE.call_once(|| {
+                $crate::register_type::<Self>();
+            });
+
+            Self::static_type()
+        }
+    };
+}
+
 /// Register a `glib::Type` ID for `T`
 ///
 /// This must be called only once and will panic on a second call.
+///
+/// See [`object_get_type!`] for defining a function that ensures that
+/// this is only called once and returns the type id.
+///
+/// [`object_get_type!`]: ../macro.object_get_type.html
 pub fn register_type<T: ObjectSubclass>() -> glib::Type {
     unsafe {
         use std::ffi::CString;

@@ -13,6 +13,7 @@ extern crate gobject_sys as gobject_ffi;
 
 extern crate glib;
 
+#[macro_use]
 extern crate gobject_subclass as subclass;
 use subclass::object;
 use subclass::prelude::*;
@@ -20,36 +21,16 @@ use subclass::prelude::*;
 pub struct SimpleObject {}
 
 impl SimpleObject {
-    // TODO This should be a macro
-    pub fn get_type() -> glib::Type {
-        use std::sync::Once;
-        static ONCE: Once = Once::new();
-
-        ONCE.call_once(|| {
-            subclass::register_type::<SimpleObject>();
-        });
-
-        Self::static_type()
-    }
+    object_get_type!();
 }
 
-unsafe impl ObjectSubclass for SimpleObject {
+impl ObjectSubclass for SimpleObject {
     const NAME: &'static str = "SimpleObject";
     type ParentType = glib::Object;
     type Instance = subclass::simple::InstanceStruct<Self>;
     type Class = subclass::simple::ClassStruct<Self>;
 
-    // TODO: macro
-    fn type_data() -> ptr::NonNull<subclass::TypeData> {
-        static mut DATA: subclass::TypeData = subclass::TypeData {
-            type_: glib::Type::Invalid,
-            parent_class: ptr::null_mut(),
-            interfaces: ptr::null_mut(),
-            private_offset: 0,
-        };
-
-        unsafe { ptr::NonNull::new_unchecked(&mut DATA) }
-    }
+    object_subclass!();
 
     fn class_init(klass: &mut subclass::simple::ClassStruct<Self>) {
         ObjectClassExt::override_vfuncs(klass);
@@ -61,10 +42,7 @@ unsafe impl ObjectSubclass for SimpleObject {
 }
 
 impl object::ObjectImpl for SimpleObject {
-    // TODO macro
-    fn get_type_data(&self) -> ptr::NonNull<subclass::TypeData> {
-        Self::type_data()
-    }
+    object_impl!();
 
     fn constructed(&self, obj: &glib::Object) {
         self.parent_constructed(obj);

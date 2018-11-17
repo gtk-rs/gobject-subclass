@@ -14,6 +14,7 @@ extern crate libc;
 pub extern crate glib;
 
 #[macro_use]
+#[doc(hidden)]
 pub mod guard;
 
 pub mod simple;
@@ -23,10 +24,9 @@ pub mod object;
 pub mod properties;
 
 pub mod prelude {
+    //! Prelude that re-exports all important traits from this crate
     pub use super::object::{ObjectClassExt, ObjectImpl};
-    pub use super::types::{
-        ClassStruct, InstanceStruct, IsAClass, IsClassFor, IsInstanceFor, ObjectSubclass,
-    };
+    pub use super::types::{ClassStruct, InstanceStruct, IsAClass, IsClassFor, ObjectSubclass};
 }
 
 pub use types::register_type;
