@@ -28,7 +28,7 @@ use types;
 /// [`ObjectImpl`]: object/trait.ObjectImpl.html
 macro_rules! object_impl {
     () => {
-        fn get_type_data(&self) -> ptr::NonNull<$crate::TypeData> {
+        fn get_type_data(&self) -> ::std::ptr::NonNull<$crate::TypeData> {
             Self::type_data()
         }
     };
