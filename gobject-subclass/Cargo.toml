@@ -1,6 +1,6 @@
 [package]
 name = "gobject-subclass"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Sebastian Dröge <sebastian@centricular.com>"]
 categories = ["api-bindings"]
 description = "Infrastructure for GObject subclassing in Rust"
