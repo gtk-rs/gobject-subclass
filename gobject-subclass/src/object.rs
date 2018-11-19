@@ -30,6 +30,10 @@ pub trait ObjectImpl<T: ObjectBase>: AnyImpl + 'static {
     fn get_property(&self, _obj: &glib::Object, _id: u32) -> Result<glib::Value, ()> {
         unimplemented!()
     }
+
+    fn constructed(&self, obj: &T) {
+        obj.parent_constructed()
+    }
 }
 
 // warning: constraints is defined as a repetition to minimize code duplication.
@@ -50,6 +54,11 @@ macro_rules! box_object_impl(
             fn get_property(&self, obj: &glib::Object, id: u32) -> Result<glib::Value, ()> {
                 let imp: &$name<T> = self.as_ref();
                 imp.get_property(obj, id)
+            }
+
+            fn constructed(&self, obj: &T) {
+                let imp: &$name<T> = self.as_ref();
+                imp.constructed(obj)
             }
         }
     };
@@ -171,8 +180,8 @@ where
 {
     fn override_vfuncs(&mut self, _: &ClassInitToken) {
         unsafe {
-            let _klass = &mut *(self as *const Self as *mut gobject_ffi::GObjectClass);
-            // Nothing to see here yet
+            let klass = &mut *(self as *const Self as *mut gobject_ffi::GObjectClass);
+            klass.constructed = Some(object_constructed::<T>);
         }
     }
 
@@ -244,7 +253,8 @@ where
             accumulator(
                 &mut *(return_accu as *mut glib::Value),
                 &*(handler_return as *const glib::Value),
-            ).to_glib()
+            )
+            .to_glib()
         }
 
         unsafe {
@@ -449,6 +459,18 @@ unsafe extern "C" fn sub_init<T: ObjectType>(
     instance.set_impl(ptr::NonNull::new_unchecked(Box::into_raw(Box::new(imp))));
 }
 
+unsafe extern "C" fn object_constructed<T: ObjectBase>(ptr: *mut gobject_ffi::GObject)
+where
+    T::ImplType: ObjectImpl<T>,
+    T::InstanceStructType: Instance<T>,
+{
+    floating_reference_guard!(ptr);
+    let obj = &*(ptr as *mut T::InstanceStructType);
+    let wrap: T = from_glib_borrow(ptr as *mut T::InstanceStructType);
+    let imp = obj.get_impl();
+    imp.constructed(&wrap);
+}
+
 pub fn register_type<T: ObjectType, I: ImplTypeStatic<T>>(imp: I) -> glib::Type {
     unsafe {
         let parent_type = get_type::<T>();
@@ -485,7 +507,17 @@ pub fn register_type<T: ObjectType, I: ImplTypeStatic<T>>(imp: I) -> glib::Type 
 
 any_impl!(ObjectBase, ObjectImpl);
 
-pub unsafe trait ObjectBase: glib::IsA<glib::Object> + ObjectType {}
+pub unsafe trait ObjectBase: glib::IsA<glib::Object> + ObjectType {
+    fn parent_constructed(&self) {
+        unsafe {
+            let klass = self.get_class();
+            let parent_klass = (*klass).get_parent_class() as *const gobject_ffi::GObjectClass;
+            (*parent_klass)
+                .constructed
+                .map(|f| f(self.to_glib_none().0));;
+        }
+    }
+}
 
 glib_wrapper! {
     pub struct Object(Object<InstanceStruct<Object>>);
