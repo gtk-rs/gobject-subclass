@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html),
 specifically the [variant used by Rust](http://doc.crates.io/manifest.html#the-version-field).
 
+## [0.2.1] - 2018-11-19
+### Added
+- Object::constructed() can be overridden now. It is potentially unsafe to
+  call any object methods in the init function so this has to be deferred to
+  constructed() instead. Later versions will not provide access to the object
+  in the init function anymore.
+
 ## [0.2.0] - 2018-09-08
 ### Changed
 - Big refactoring and resulting simplification of how the traits work
@@ -22,5 +29,6 @@ specifically the [variant used by Rust](http://doc.crates.io/manifest.html#the-v
 
 - Initial release of gobject-subclass.
 
-[Unreleased]: https://github.com/gtk-rs/gobject-subclass/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/gtk-rs/gobject-subclass/compare/0.2.1...HEAD
+[0.2.1]: https://github.com/gtk-rs/gobject-subclass/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/gtk-rs/gobject-subclass/compare/0.1.0...0.2.0
