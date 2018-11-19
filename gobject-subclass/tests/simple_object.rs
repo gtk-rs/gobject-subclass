@@ -102,6 +102,10 @@ mod imp {
                 _ => unimplemented!(),
             }
         }
+
+        fn constructed(&self, obj: &Object) {
+            obj.parent_constructed();
+        }
     }
 
     struct SimpleObjectStatic;
@@ -168,7 +172,8 @@ impl SimpleObject {
             f(&obj, name);
 
             None
-        }).unwrap()
+        })
+        .unwrap()
     }
 }
 
