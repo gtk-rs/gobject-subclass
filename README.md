@@ -1,5 +1,7 @@
 # gobject-subclass [![crates.io](https://img.shields.io/crates/v/gobject-subclass.svg)](https://crates.io/crates/gobject-subclass) [![Build Status](https://travis-ci.org/gtk-rs/gobject-subclass.svg?branch=master)](https://travis-ci.org/gtk-rs/gobject-subclass)
 
+# This crate is deprecated and all functionality from in here was merged into [glib-rs](https://github.com/gtk-rs/glib) with the 0.7 release
+
 Infrastructure for writing [GObject](https://developer.gnome.org/gobject/stable/)
 subclasses in the [Rust programming language](https://www.rust-lang.org/), and (in the future)
 bindings for GObject and [GIO](https://developer.gnome.org/gio/stable/)
