@@ -31,6 +31,7 @@ use std::ptr;
 use gobject_subclass::anyimpl::*;
 use gobject_subclass::object::*;
 use action_group;
+use action_map;
 
 use std::fmt;
 use std::ffi::OsString;
